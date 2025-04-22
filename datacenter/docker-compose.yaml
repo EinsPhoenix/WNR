@@ -1,0 +1,18 @@
+# version: '3.8'
+
+# services:
+#   rust-app:
+#     image: rust:latest
+#     container_name: rust-datacenter
+#     working_dir: /usr/src/datacenter
+#     volumes:
+#       - .:/usr/src/datacenter
+#     command: >
+#       sh -c "
+#         apt-get update && 
+#         apt-get install -y ca-certificates && 
+#         update-ca-certificates && 
+#         cargo run --release
+#       "
+
+
