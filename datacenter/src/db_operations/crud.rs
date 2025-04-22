@@ -7,7 +7,7 @@ use std::collections::HashMap;
 // validate function
 
 async fn validate_data(data: &Value) -> bool {
-    let data_array = match data.get("data").and_then(|d| d.as_array()) {
+    let data_array = match data.as_array() {
         Some(array) => array,
         _ => {
             error!("Invalid array");
@@ -42,13 +42,11 @@ pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, St
         return Err("Data validation failed".to_string());
     }
 
-    let data_array = match data.get("data") {
-        Some(data) => match data.as_array() {
-            Some(array) => array,
-            None => return Err("'data' field is not an array".to_string())
-        },
-        None => return Err("'data' field is missing".to_string())
+    let data_array = match data.as_array() {
+        Some(array) => array,
+        None => return Err("'data' field is not an array".to_string())
     };
+    
 
     let neo4j_data: Vec<HashMap<String, Value>> = data_array.iter().map(|item| {
         let mut record = HashMap::new();
