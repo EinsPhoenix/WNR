@@ -44,6 +44,7 @@ class MqttClient:
         self.request_completed = False
         self.request_timed_out = False
         self.request_type = None
+        self.request_failed = False
 
         self.setup_logging()
 
@@ -55,19 +56,15 @@ class MqttClient:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_file = f"logs/log_client_{self.client_id}_{timestamp}.log"
 
-        # Create logger
         self.logger = logging.getLogger(self.client_id)
         self.logger.setLevel(logging.INFO)
 
-        # Create file handler
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.INFO)
 
-        # Create formatter and add it to handler
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         file_handler.setFormatter(formatter)
 
-        # Add handler to logger
         self.logger.addHandler(file_handler)
 
         self.logger.info(f"Client {self.client_id} logging initialized")
@@ -91,7 +88,6 @@ class MqttClient:
 
             payload = json.loads(msg.payload.decode())
 
-            # Handle paginated messages
             page_pattern = re.compile(r"(.*)/page/(\d+)")
             page_match = page_pattern.match(msg.topic)
             if page_match:
@@ -103,7 +99,6 @@ class MqttClient:
                 self.is_paginated = True
                 return
 
-            # Handle paginated summary messages
             if msg.topic.endswith("/summary"):
                 with self.lock:
                     log_msg = f"Client {self.client_id} received pagination summary on {msg.topic}"
@@ -113,18 +108,27 @@ class MqttClient:
                 self.is_paginated = True
                 return
 
-            # Regular message
             with self.lock:
                 log_msg = f"Client {self.client_id} received response on {msg.topic}"
                 print(f"\n📨 {log_msg}")
                 self.logger.info(log_msg)
-                # Log a preview of the payload (first 200 chars)
+
                 payload_str = json.dumps(payload)
                 self.logger.info(f"Payload preview: {payload_str[:200]}...")
                 print(json.dumps(payload, indent=2))
             self.received_response = payload
-            self.end_time = time.time()  # Mark the end time
+            self.end_time = time.time()
             self.request_completed = True
+
+            if (
+                isinstance(self.received_response, dict)
+                and self.received_response.get("status") == "error"
+            ):
+                self.request_failed = True
+                with self.lock:
+                    log_msg = f"Client {self.client_id} request marked as FAILED due to status: error"
+                    print(f"❌ {log_msg}")
+                    self.logger.warning(log_msg)
             self.response_received.set()
 
         except json.JSONDecodeError:
@@ -139,7 +143,6 @@ class MqttClient:
         base_topic = match.group(1)
         page_num = int(match.group(2))
 
-        # Extract pagination metadata
         request_id = payload.get("request_id")
         if not request_id:
             with self.lock:
@@ -150,7 +153,6 @@ class MqttClient:
 
         message_id = f"{base_topic}_{request_id}"
 
-        # Initialize tracking structure for this paginated message if needed
         if message_id not in self.paginated_messages:
             self.paginated_messages[message_id] = {
                 "total_pages": payload.get("total_pages", 0),
@@ -159,13 +161,11 @@ class MqttClient:
                 "complete": False,
             }
 
-        # Update tracking info with total pages if we didn't have it
         if self.paginated_messages[message_id]["total_pages"] == 0:
             self.paginated_messages[message_id]["total_pages"] = payload.get(
                 "total_pages", 0
             )
 
-        # Store this page
         self.paginated_messages[message_id]["pages"][page_num] = payload.get("data", [])
         self.paginated_messages[message_id]["received_pages"] += 1
         self.total_pages_received += 1
@@ -175,7 +175,6 @@ class MqttClient:
             print(f"📄 {log_msg}")
             self.logger.info(log_msg)
 
-        # Check if we have all pages and can reassemble
         if (
             self.paginated_messages[message_id]["received_pages"]
             == self.paginated_messages[message_id]["total_pages"]
@@ -205,7 +204,6 @@ class MqttClient:
             print(f"📋 {log_msg}")
             self.logger.info(log_msg)
 
-        # If we already have all pages, trigger reassembly
         if (
             message_id in self.paginated_messages
             and self.paginated_messages[message_id]["received_pages"] == total_pages
@@ -222,7 +220,6 @@ class MqttClient:
         if not self.paginated_messages[message_id]["complete"]:
             data = self.paginated_messages[message_id]
 
-            # Combine all pages in order
             all_items = []
             for page_num in sorted(data["pages"].keys()):
                 all_items.extend(data["pages"][page_num])
@@ -232,16 +229,36 @@ class MqttClient:
                 print(f"✅ {log_msg}")
                 self.logger.info(log_msg)
 
-            # Mark as complete to avoid reassembling again if we get multiple triggers
             self.paginated_messages[message_id]["complete"] = True
 
-            # Set as the response and trigger the event
             self.received_response = all_items
-            self.end_time = time.time()  # Mark the end time
+            self.end_time = time.time()
             self.request_completed = True
+
+            if (
+                isinstance(self.received_response, dict)
+                and self.received_response.get("status") == "error"
+            ):
+                self.request_failed = True
+                with self.lock:
+                    log_msg = f"Client {self.client_id} paginated request marked as FAILED due to status: error"
+                    print(f"❌ {log_msg}")
+                    self.logger.warning(log_msg)
+
+            elif (
+                isinstance(all_items, list)
+                and all_items
+                and isinstance(all_items[0], dict)
+                and all_items[0].get("status") == "error"
+            ):
+                self.request_failed = True
+                with self.lock:
+                    log_msg = f"Client {self.client_id} paginated request marked as FAILED due to status: error in first item"
+                    print(f"❌ {log_msg}")
+                    self.logger.warning(log_msg)
+
             self.response_received.set()
 
-            # Save to file
             filename = f"paginated_response_{self.client_id}_{int(time.time())}.json"
             with open(filename, "w") as f:
                 json.dump(all_items, f, indent=2)
@@ -255,13 +272,14 @@ class MqttClient:
         self.response_received.clear()
         self.received_response = None
         self.paginated_messages = {}
-        self.first_response_time = None  # Reset first response time tracker
-        self.end_time = None  # Reset end time
+        self.first_response_time = None
+        self.end_time = None
         self.is_paginated = False
         self.total_pages_received = 0
         self.request_completed = False
         self.request_timed_out = False
         self.request_type = response_suffix
+        self.request_failed = False
 
         try:
             self.client.connect(BROKER, PORT)
@@ -274,7 +292,6 @@ class MqttClient:
                     f"{RESPONSE_TOPIC_BASE}{self.client_id}/{response_suffix}"
                 )
 
-            # Subscribe to all the possible topic patterns
             page_wildcard = f"{response_topic}/page/#"
             summary_topic = f"{response_topic}/summary"
 
@@ -290,10 +307,8 @@ class MqttClient:
                 print(f"🔔 Client {self.client_id} subscribed to: {page_wildcard}")
                 print(f"🔔 Client {self.client_id} subscribed to: {summary_topic}")
 
-            # Add client_id to query data
             query_data["client_id"] = self.client_id
 
-            # Send request and record start time
             self.start_time = time.time()
             self.client.publish(REQUEST_TOPIC, json.dumps(query_data))
 
@@ -307,7 +322,6 @@ class MqttClient:
             timeout = 30 if "all" in response_suffix else timeout
             result = self.response_received.wait(timeout)
 
-            # Calculate and print the elapsed time
             elapsed_time = None
             if self.first_response_time is not None:
                 elapsed_time = self.first_response_time - self.start_time
@@ -352,6 +366,7 @@ class MqttClient:
             "total_pages": self.total_pages_received,
             "completed": self.request_completed,
             "timed_out": self.request_timed_out,
+            "failed": self.request_failed,
         }
 
         if self.first_response_time and self.start_time:
@@ -422,7 +437,6 @@ def run_test_client_with_metrics(
     """Run a test client and return both result and metrics"""
     client = MqttClient(client_name)
 
-    # Map request type to handler function
     request_handlers = {
         "uuid": lambda: client.send_request(
             {
@@ -509,8 +523,6 @@ def run_multiple_clients(num_clients=5, test_type=None):
     for i in range(num_clients):
         client_name = f"test-client-{i+1}"
 
-        # If test_type is provided, use it for all clients
-        # Otherwise, randomly select a test type for each client
         selected_test = test_type or random.choice(test_types)
 
         # Prepare parameters with slight variations
@@ -537,21 +549,18 @@ def run_multiple_clients(num_clients=5, test_type=None):
 
     print(f"🚀 Starting {num_clients} clients simultaneously...")
 
-    # Create a thread pool and submit all tasks
     with ThreadPoolExecutor(max_workers=num_clients) as executor:
         futures = [
             executor.submit(run_test_client_with_metrics, name, test, params)
             for name, test, params in tasks
         ]
 
-        # Collect metrics as tasks complete
         for future in futures:
             _, metrics = future.result()
             all_metrics.append(metrics)
 
     print(f"✅ All client tests completed")
 
-    # Generate and print benchmark report
     generate_benchmark_report(all_metrics)
 
 
@@ -561,22 +570,19 @@ def generate_benchmark_report(metrics):
         print("No metrics available to generate report.")
         return
 
-    # Create a logs directory if it doesn't exist
     if not os.path.exists("logs"):
         os.makedirs("logs")
 
-    # Timestamp for report
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_file = f"logs/benchmark_report_{timestamp}.txt"
 
-    # Initialize counters
     total_clients = len(metrics)
     completed_requests = sum(1 for m in metrics if m.get("completed", False))
     timed_out_requests = sum(1 for m in metrics if m.get("timed_out", False))
+    failed_requests = sum(1 for m in metrics if m.get("failed", False))
     paginated_requests = sum(1 for m in metrics if m.get("is_paginated", False))
     non_paginated_requests = total_clients - paginated_requests
 
-    # Response time calculations
     response_times = [
         m.get("first_response_latency")
         for m in metrics
@@ -586,7 +592,6 @@ def generate_benchmark_report(metrics):
         sum(response_times) / len(response_times) if response_times else 0
     )
 
-    # Total duration calculations
     total_durations = [
         m.get("total_duration") for m in metrics if m.get("total_duration") is not None
     ]
@@ -594,7 +599,6 @@ def generate_benchmark_report(metrics):
         sum(total_durations) / len(total_durations) if total_durations else 0
     )
 
-    # Request type metrics
     request_types = {}
     for m in metrics:
         req_type = m.get("request_type")
@@ -604,6 +608,7 @@ def generate_benchmark_report(metrics):
                     "count": 0,
                     "completed": 0,
                     "timed_out": 0,
+                    "failed": 0,
                     "response_times": [],
                 }
 
@@ -614,6 +619,9 @@ def generate_benchmark_report(metrics):
 
             if m.get("timed_out", False):
                 request_types[req_type]["timed_out"] += 1
+
+            if m.get("failed", False):
+                request_types[req_type]["failed"] += 1
 
             if m.get("first_response_latency") is not None:
                 request_types[req_type]["response_times"].append(
@@ -630,6 +638,7 @@ def generate_benchmark_report(metrics):
         f.write(f"Total Clients: {total_clients}\n")
         f.write(f"Completed Requests: {completed_requests}\n")
         f.write(f"Timed Out Requests: {timed_out_requests}\n")
+        f.write(f"Failed Requests: {failed_requests}\n")
         f.write(f"Average Response Time: {avg_response_time:.3f} seconds\n")
         f.write(f"Average Total Duration: {avg_total_duration:.3f} seconds\n")
         f.write(f"Paginated Responses: {paginated_requests}\n")
@@ -647,14 +656,15 @@ def generate_benchmark_report(metrics):
             f.write(f"  Count: {data['count']}\n")
             f.write(f"  Completed: {data['completed']}\n")
             f.write(f"  Timed Out: {data['timed_out']}\n")
+            f.write(f"  Failed: {data['failed']}\n")
             f.write(f"  Average Response Time: {avg_time:.3f} seconds\n\n")
 
-    # Print summary to console
     print("\n📊 BENCHMARK REPORT SUMMARY")
     print("-" * 30)
     print(f"Total Clients: {total_clients}")
     print(f"Completed Requests: {completed_requests}")
     print(f"Timed Out Requests: {timed_out_requests}")
+    print(f"Failed Requests: {failed_requests}")
     print(f"Average Response Time: {avg_response_time:.3f} seconds")
     print(f"Paginated Responses: {paginated_requests}")
     print(f"Non-paginated Responses: {non_paginated_requests}")
@@ -690,7 +700,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Ensure sensible client count
     if args.clients < 1:
         args.clients = 1
     elif args.clients > 50:
