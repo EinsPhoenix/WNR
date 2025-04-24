@@ -1,0 +1,113 @@
+use log::info;
+use serde_json::{Value, json};
+use std::sync::Arc;
+use tokio::io::AsyncWriteExt;
+use tokio::net::TcpStream;
+
+use crate::db;
+use crate::db_operations::crud::create_new_relation;
+use crate::command_handler::router;
+
+pub async fn process_json(json: &Value, db_handler: Arc<db::DatabaseCluster>, socket: &mut TcpStream) -> Result<(), String> {
+    info!("Processing JSON: {}", json);
+    
+    if let Some(message_type) = json.get("type") {
+        match message_type.as_str() {
+            Some("message") => {
+                let result = handle_message(json);
+                send_response(socket, &result).await?;
+                Ok(())
+            },
+            Some("command") => {
+                let result = handle_command(json, db_handler).await;
+                send_response(socket, &result).await?;
+                Ok(())
+            },
+            Some("data") => {
+                let result = handle_data(json, db_handler).await;
+                send_response(socket, &result).await?;
+                Ok(())
+            },
+            _ => {
+                let error_msg = format!("Unknown message type: {:?}", message_type);
+                send_error(socket, &error_msg).await?;
+                Err(error_msg)
+            }
+        }
+    } else {
+        let error_msg = "JSON has no type field".to_string();
+        send_error(socket, &error_msg).await?;
+        Err(error_msg)
+    }
+}
+
+fn handle_message(json: &Value) -> Result<String, String> {
+    if let Some(content) = json.get("content") {
+        info!("Received message: {:?}", content);
+        Ok(format!("Message processed: {}", content))
+    } else {
+        Err("No 'content' field found in message".to_string())
+    }
+}
+
+async fn handle_command(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+    if let Some(command) = json.get("command") {
+        info!("Received command: {:?}", command);
+        
+        if let Some(cmd_str) = command.as_str() {
+            match router(cmd_str, db_handler).await {
+                Ok(true) => Ok(format!("Command '{}' executed successfully", cmd_str)),
+                Ok(false) => Err(format!("Command '{}' execution failed", cmd_str)),
+                Err(e) => Err(format!("Error processing command '{}': {}", cmd_str, e)),
+            }
+        } else {
+            Err(format!("Command is not a string: {:?}", command))
+        }
+    } else {
+        Err("No 'command' field found in JSON".to_string())
+    }
+}
+
+async fn handle_data(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+    if let Some(data) = json.get("data") {
+        let primary_conn = db_handler.get_primary_db().await;
+      
+        match create_new_relation(data, &primary_conn).await {
+            Ok(true) => Ok("Relations created successfully".to_string()),
+            Ok(false) => Ok("No new relations created (UUIDs might already exist)".to_string()),
+            Err(error_msg) => Err(error_msg),
+        }
+    } else {
+        Err("No 'data' field found in JSON".to_string())
+    }
+}
+
+async fn send_response(socket: &mut TcpStream, result: &Result<String, String>) -> Result<(), String> {
+    let response = match result {
+        Ok(msg) => json!({ "status": "success", "message": msg }),
+        Err(err) => json!({ "status": "error", "message": err }),
+    };
+    
+    send_json_response(socket, &response).await
+}
+
+async fn send_error(socket: &mut TcpStream, error_msg: &str) -> Result<(), String> {
+    let response = json!({
+        "status": "error",
+        "message": error_msg
+    });
+    
+    send_json_response(socket, &response).await
+}
+
+async fn send_json_response(socket: &mut TcpStream, json: &Value) -> Result<(), String> {
+    match socket.write_all(json.to_string().as_bytes()).await {
+        Ok(_) => {
+            if let Err(e) = socket.write_all(b"\n").await {
+                return Err(format!("Error sending newline: {}", e));
+            }
+            Ok(())
+        },
+        Err(e) => Err(format!("Error sending response: {}", e)),
+    }
+}

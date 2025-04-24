@@ -1,0 +1,138 @@
+
+services:
+  # rust-app:
+  #   image: rust:latest
+  #   container_name: rust-datacenter
+  #   working_dir: /usr/src/datacenter
+  #   ports:
+  #     - "12345:12345"
+  #   volumes:
+  #     - ./datacenter:/usr/src/datacenter
+  #   command: cargo run --release
+  #   networks:
+  #     - app-network
+  #   depends_on:
+  #     - server1
+  #     - server2
+  #     - server3
+  #     - mqtt-broker
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0.15
+    container_name: mosquitto-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883" 
+      - "9001:9001" 
+    volumes:
+      - ./mqtt-broker/mosquitto/config:/mosquitto/config
+      - ./mqtt-broker/mosquitto/data:/mosquitto/data
+      - ./mqtt-broker/mosquitto/log:/mosquitto/log
+    environment:
+      - INITIAL_USER=admin
+      - INITIAL_PASSWORD=admin
+    entrypoint: |
+      sh -c 'chown mosquitto:mosquitto /mosquitto/config/pwfile;
+      if [ ! -s /mosquitto/config/pwfile ]; then
+        mosquitto_passwd -b -c /mosquitto/config/pwfile $${INITIAL_USER} $${INITIAL_PASSWORD};
+      fi;
+      exec /docker-entrypoint.sh mosquitto -c /mosquitto/config/mosquitto.conf'
+    networks:
+      - app-network
+
+  server1:
+    image: neo4j:5.26.4-enterprise
+    container_name: server1
+    hostname: server1
+    environment:
+      - NEO4J_initial_server_mode__constraint=PRIMARY
+      - NEO4J_server.cluster.system_database_mode=PRIMARY
+      - NEO4J_dbms_cluster_discovery_version=V2_ONLY
+      - NEO4J_dbms_cluster_discovery_v2_endpoints=server1:6000,server2:6000,server3:6000
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_server_bolt_advertised__address=server1:7687
+      - NEO4J_server_http_advertised__address=server1:7474
+      - NEO4J_AUTH=neo4j/winder1234
+      - initial.dbms.default_database=neo4j
+      - NEO4J_dbms_routing_enabled=true
+      - NEO4J_dbms_routing_default__router=SERVER
+      - initial.dbms.default_primaries_count=1
+      - initial.dbms.default_secondaries_count=2
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+    ports:
+      - "7474:7474"
+      - "7473:7473"
+      - "7687:7687"
+    networks:
+      - app-network
+    depends_on:
+      - mqtt-broker
+
+
+  server2:
+    image: neo4j:5.26.4-enterprise
+    container_name: server2
+    hostname: server2
+    environment:
+      - NEO4J_initial_server_mode__constraint=SECONDARY
+      - NEO4J_server.cluster.system_database_mode=SECONDARY
+      - NEO4J_dbms_cluster_discovery_version=V2_ONLY
+      - NEO4J_dbms_cluster_discovery_v2_endpoints=server1:6000,server2:6000,server3:6000
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_server_bolt_advertised__address=localhost:8687
+      - NEO4J_server_http_advertised__address=localhost:8474
+      - NEO4J_AUTH=neo4j/winder1234
+      - initial.dbms.default_database=neo4j
+      - NEO4J_dbms_routing_enabled=true
+      - NEO4J_dbms_routing_default__router=SERVER
+      - initial.dbms.default_primaries_count=1
+      - initial.dbms.default_secondaries_count=2
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+    ports:
+      - "8474:7474"
+      - "8473:7473"
+      - "8687:7687"
+    networks:
+      - app-network
+    depends_on:
+      - server1
+    
+
+  server3:
+    image: neo4j:5.26.4-enterprise
+    container_name: server3
+    hostname: server3
+    environment:
+      - NEO4J_initial_server_mode__constraint=SECONDARY
+      - NEO4J_server.cluster.system_database_mode=SECONDARY
+      - NEO4J_dbms_cluster_discovery_version=V2_ONLY
+      - NEO4J_dbms_cluster_discovery_v2_endpoints=server1:6000,server2:6000,server3:6000
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_server_bolt_advertised__address=localhost:9687
+      - NEO4J_server_http_advertised__address=localhost:9474
+      - NEO4J_AUTH=neo4j/winder1234
+      - initial.dbms.default_database=neo4j
+      - NEO4J_dbms_routing_enabled=true
+      - NEO4J_dbms_routing_default__router=SERVER
+      - initial.dbms.default_primaries_count=1
+      - initial.dbms.default_secondaries_count=2
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+    ports:
+      - "9474:7474"
+      - "9473:7473"
+      - "9687:7687"
+    networks:
+      - app-network
+    depends_on:
+      - server2
+    
+
+networks:
+  app-network:
+    driver: bridge

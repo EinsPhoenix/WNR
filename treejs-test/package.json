@@ -1,0 +1,21 @@
+{
+  "name": "treejs-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "three": "^0.174.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.2"
+  }
+  
+}
