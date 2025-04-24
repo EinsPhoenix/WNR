@@ -1,5 +1,5 @@
 use rumqttc::{MqttOptions, AsyncClient, Event, Incoming, QoS, EventLoop};
-use tokio::time::{self, Duration, Instant};
+use tokio::time::{self, Duration};
 use log::{info, error, warn};
 use serde_json::json;
 use std::env;

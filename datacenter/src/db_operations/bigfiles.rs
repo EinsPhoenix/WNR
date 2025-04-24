@@ -4,9 +4,9 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::error::Error;
 
-use neo4rs::{Graph, query};
+use neo4rs::Graph;
 use log::{error, info};
-use serde_json::{json, Value, Deserializer};
+use serde_json::{Value, Deserializer};
 
 
 use crate::db_operations::crud::create_new_relation;

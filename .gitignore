@@ -163,3 +163,6 @@ mqtt-broker/mosquitto/log/mosquitto.log
 
 ./venv
 **/venv
+
+./export_all_data.json
+**/export_all_data.json

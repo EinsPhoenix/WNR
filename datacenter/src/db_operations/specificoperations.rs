@@ -1,6 +1,6 @@
 use neo4rs::{Graph, query};
-use log::{error, info, warn};
-use serde_json::{json, Value, Deserializer};
+use log::{error};
+use serde_json::{json, Value};
 
 pub async fn get_temperature_humidity_at_time(graph: &Graph, timestamp: &str) -> Option<(f64, f64)> {
     let cypher_query = query(r#"

@@ -23,3 +23,7 @@ regex = "1.11.0"
 rayon = "1.9"
 memmap2 = "0.9"
 thiserror = "2.0.12"
+
+
+[dev-dependencies]
+serial_test = "*"

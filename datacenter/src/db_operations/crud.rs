@@ -1,19 +1,25 @@
 use neo4rs::{Graph, query};
 use log::{error, info, warn};
-use serde_json::{json, Value, Deserializer};
+use serde_json::{json, Value};
 use std::collections::HashMap;
 
 
 // validate function
 
 async fn validate_data(data: &Value) -> bool {
-    let data_array = match data.as_array() {
+    
+    let data_array = match data.get("data").and_then(|d| d.as_array()) {
         Some(array) => array,
         _ => {
-            error!("Invalid array");
+            error!("Input JSON must be an object with a 'data' key containing an array.");
             return false;
         }
     };
+
+  
+    if data_array.is_empty() {
+        return true;
+    }
 
     for item in data_array {
         if !validate_item(item).await {
@@ -38,16 +44,24 @@ async fn validate_item(item: &Value) -> bool {
 
 //create function
 pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, String> {
+    
+    let data_array = match data.get("data").and_then(|d| d.as_array()) {
+        Some(array) => array,
+        None => return Err("Input JSON must be an object with a 'data' key containing an array.".to_string())
+    };
+
+   
+    if data_array.is_empty() {
+        info!("Received empty data array. No nodes will be created.");
+        return Ok(false); 
+    }
+
+   
     if !validate_data(data).await {
         return Err("Data validation failed".to_string());
     }
 
-    let data_array = match data.as_array() {
-        Some(array) => array,
-        None => return Err("'data' field is not an array".to_string())
-    };
-    
-
+  
     let neo4j_data: Vec<HashMap<String, Value>> = data_array.iter().map(|item| {
         let mut record = HashMap::new();
         if let Some(uuid) = item.get("uuid").and_then(|v| v.as_str()) {
@@ -203,7 +217,7 @@ pub async fn get_specific_uuid_node(uuid: &str, graph: &Graph) -> Option<Value> 
     }
 }
 
-// Funktion, um alle UUID-Nodes zu bekommen und in JSON umzuwandeln
+
 pub async fn get_all_uuid_nodes(graph: &Graph) -> Option<Value> {
     let query = query(r#"
         MATCH (uuidNode:UUID)
