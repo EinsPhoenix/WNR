@@ -381,3 +381,50 @@ pub async fn get_newest_uuid(graph: &Graph) -> Option<Value> {
         }
     }
 }
+
+pub async fn delete_uuid_nodes(graph: &Graph, uuids: &[String]) -> Result<usize, String> {
+    if uuids.is_empty() {
+        info!("Received empty UUID list. No nodes will be deleted.");
+        return Ok(0);
+    }
+    info!("Attempting to delete nodes with UUIDs: {:?}", uuids);
+
+
+    let deletion_query = query(r#"
+        UNWIND $uuids AS uuid_to_delete_id
+        MATCH (uuid:UUID {id: uuid_to_delete_id})
+        OPTIONAL MATCH (uuid)-[r]-(orphan)
+        WHERE NOT orphan:UUID AND size((orphan)--()) = 1
+        WITH uuid, collect(distinct orphan) AS orphans_to_delete
+        WITH collect({uuid_node: uuid, orphans: orphans_to_delete}) AS items_to_delete
+        UNWIND items_to_delete AS item
+        DETACH DELETE item.uuid_node
+        FOREACH (o IN item.orphans | DETACH DELETE o)
+        RETURN size(items_to_delete) as deleted_count
+    "#)
+    .param("uuids", uuids); 
+
+    match graph.execute(deletion_query).await {
+        Ok(mut result) => {
+            
+            if let Ok(Some(row)) = result.next().await {
+                let deleted_count: i64 = row.get("deleted_count").unwrap_or(0);
+                let count = deleted_count as usize;
+                if count > 0 {
+                    info!("Successfully deleted {} node(s) matching the provided UUIDs.", count);
+                } else {
+                    warn!("No nodes found matching the provided UUIDs for deletion: {:?}", uuids);
+                }
+                Ok(count) 
+            } else {
+                warn!("Deletion query did not return the expected count. Assuming 0 nodes deleted for UUIDs: {:?}", uuids);
+                Ok(0)
+            }
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to execute deletion query for UUIDs {:?}: {}", uuids, e);
+            error!("{}", error_msg);
+            Err(error_msg)
+        }
+    }
+}

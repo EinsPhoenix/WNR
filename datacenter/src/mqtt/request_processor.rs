@@ -5,7 +5,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::db;
-use crate::db_operations::crud::{get_specific_uuid_node, get_all_uuid_nodes, get_newest_uuid, create_new_relation,get_paginated_uuids};
+use crate::db_operations::crud::{get_specific_uuid_node, get_all_uuid_nodes, get_newest_uuid, create_new_relation,get_paginated_uuids, delete_uuid_nodes};
 use crate::db_operations::specificoperations::{get_temperature_humidity_at_time, get_nodes_with_temperature_or_humidity, get_nodes_in_time_range, get_nodes_with_color, get_nodes_with_energy_cost, get_nodes_with_energy_consume};
 use crate::db_operations::relationshipexport::export_all_with_relationships;
 
@@ -308,6 +308,69 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             } else {
                  warn!("Missing or invalid 'data' field for 'page' request. Client: {}", requesting_client_id);
                 return publish_error_response(client, &requesting_client_id, "page", "Missing or invalid 'data' field (must be a positive integer page number)").await;
+            }
+        },
+
+        Some("delete") => {
+            info!("Processing 'delete' data for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/delete", requesting_client_id);
+
+            if let Some(data_value) = json_value.get("data") {
+                if let Some(uuid_array) = data_value.as_array() {
+                    
+                    let uuids_to_delete: Vec<String> = uuid_array.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect();
+
+                    if uuids_to_delete.is_empty() && !uuid_array.is_empty() {
+                         warn!("'data' array for 'delete' request contained no valid strings. Client: {}", requesting_client_id);
+                         return publish_error_response(client, &requesting_client_id, "delete", "'data' array must contain strings").await;
+                    }
+                     if uuids_to_delete.is_empty() && uuid_array.is_empty() {
+                         info!("Received empty 'data' array for 'delete' request. No action taken. Client: {}", requesting_client_id);
+    
+                         let response = json!({
+                             "status": "success",
+                             "message": "Received empty list, no nodes deleted.",
+                             "deleted_count": 0
+                         });
+                         publish_result(client, &response_topic, &response).await?;
+                         
+                     } else {
+                       
+                        match delete_uuid_nodes(&write_conn, &uuids_to_delete).await {
+                            Ok(deleted_count) => {
+                                if deleted_count > 0 {
+                                    info!("Successfully deleted {} nodes for Client-ID: {}", deleted_count, requesting_client_id);
+                                    let response = json!({
+                                        "status": "success",
+                                        "message": format!("Successfully deleted {} node(s).", deleted_count),
+                                        "deleted_count": deleted_count
+                                    });
+                                    publish_result(client, &response_topic, &response).await?;
+                                } else {
+                                    warn!("No nodes found matching the provided UUIDs for deletion. Client-ID: {}", requesting_client_id);
+                                    let response = json!({
+                                        "status": "not_found", 
+                                        "message": "No nodes found matching the provided UUIDs.",
+                                        "deleted_count": 0
+                                    });
+                                    publish_result(client, &response_topic, &response).await?;
+                                }
+                            },
+                            Err(err) => {
+                                error!("Failed to delete nodes for Client-ID: {}. Error: {}", requesting_client_id, err);
+                                return publish_error_response(client, &requesting_client_id, "delete", &format!("Failed to process delete request: {}", err)).await;
+                            }
+                        }
+                    }
+                } else {
+                    warn!("Invalid 'data' field format for 'delete' request (must be an array of strings). Client: {}", requesting_client_id);
+                    return publish_error_response(client, &requesting_client_id, "delete", "Invalid 'data' field format (must be an array of strings)").await;
+                }
+            } else {
+                 warn!("Missing 'data' field for 'delete' request. Client: {}", requesting_client_id);
+                return publish_error_response(client, &requesting_client_id, "delete", "Missing 'data' field").await;
             }
         },
 
