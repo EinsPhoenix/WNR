@@ -12,5 +12,16 @@ This is a school project focused on demonstrating several key concepts. The proj
 *   **Database:** 💾 Neo4j
 *   **Containerization:** 🐳 Docker
 
+---
+# 📚 Documentation Hub
+
+*Zentrale Dokumentationsübersicht mit direkten Links*
+
+| Category          | Dokumentation                          | Pfad                                  |
+|-------------------|----------------------------------------|---------------------------------------|
+| 🦀 Database Start | [Quickstart](./Info-Files-Database/Database.md) | `/Info-Files-Database/` |
+
+---
+
 
 

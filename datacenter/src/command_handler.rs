@@ -1,4 +1,4 @@
-use crate::db_operations::admin::{index_database, reset_database, alter_database};
+use crate::db_operations::admin::reset_database;
 use crate::db_operations::bigfiles::process_large_json_file;
 use log::{error, info};
 use std::process::exit;
@@ -10,31 +10,6 @@ pub async fn router(command: &str, db_handler: Arc<db::DatabaseCluster>) -> Resu
         "exit" => {
             info!("Exiting application...");
             exit(0);
-        }
-        "init" => {
-            info!("Initializing the server...");
-            let db = db_handler.get_system_db().await;
-            match alter_database(&db).await {
-                Ok(_) => {
-                    info!("Database schema altered successfully");
-                },
-                Err(e) => {
-                    error!("Failed to alter database schema: {}", e);
-                    return Err(format!("Failed to alter database schema: {}", e));
-                }
-            }
-            
-            let write_db = db_handler.get_primary_db().await;
-            match index_database(&write_db).await {
-                Ok(_) => {
-                    info!("Database indexed successfully");
-                    Ok(true)
-                },
-                Err(e) => {
-                    error!("Failed to index database: {}", e);
-                    Err(format!("Failed to index database: {}", e))
-                }
-            }
         }
         "reset" => {
             info!("Resetting the server...");

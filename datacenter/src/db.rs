@@ -86,8 +86,43 @@ impl DatabaseCluster {
         } else {
             info!("TEST environment variable not set. Skipping test database initialization.");
             let system_db_conn = Arc::clone(&system_nodes[0]);
-            remove_test_database(&system_db_conn).await?;
+
+
+            info!("Checking if 'Test' database exists before potential removal...");
+            let check_db_query = query("SHOW DATABASES WHERE name = 'Test' YIELD name");
+            match system_db_conn.execute(check_db_query).await {
+                Ok(mut stream) => {
+                    match stream.next().await {
+                        Ok(Some(_row)) => {
+                    
+                            info!("'Test' database found. Attempting removal...");
+                            match remove_test_database(&system_db_conn).await {
+                                Ok(_) => info!("'Test' database removed successfully."),
+                                Err(e) => {
+                                   
+                                    error!("Failed to remove 'Test' database: {:?}", e);
+                                    
+                                }
+                            }
+                        }
+                        Ok(None) => {
+                            
+                            info!("'Test' database does not exist. No removal needed.");
+                        }
+                        Err(e) => {
+                            error!("Error while checking 'Test' database existence stream: {:?}", e);
+                            
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to execute query to check for 'Test' database existence: {:?}", e);
+                    
+                }
+            }
         }
+
+        info!("DatabaseCluster successfully initialized.");
 
         info!("DatabaseCluster successfully initialized.");
         Ok(Self {

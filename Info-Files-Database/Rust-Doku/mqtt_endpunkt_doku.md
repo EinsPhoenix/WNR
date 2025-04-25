@@ -1,3 +1,4 @@
+# Go back home [🏠](../Database.md)
 # 📄 MQTT Request Processor Documentation
 
 This document outlines the functionality of the `request_processor.rs` module, which acts as the central hub for handling incoming MQTT requests within the `datacenter` application. It parses requests, interacts with the Neo4j database cluster (using read replicas and a primary write instance), and publishes results or errors back via MQTT. 🚀

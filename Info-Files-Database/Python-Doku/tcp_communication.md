@@ -1,3 +1,5 @@
+# Go back home [🏠](../Database.md)
+
 # TCP Client for Rust Server 🚀
 
 This document describes a Python script (`tcp_communication_example.py`) designed to interact with a Rust TCP server. It covers the script's features, how to use it, and the underlying communication protocol for sending requests to the server.

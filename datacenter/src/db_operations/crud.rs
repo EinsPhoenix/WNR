@@ -4,31 +4,37 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 
 
-// validate function
-
-async fn validate_data(data: &Value) -> bool {
+async fn validate_and_get_data_array<'a>(data: &'a Value) -> Result<&'a Vec<Value>, String> {
     
-    let data_array = match data.get("data").and_then(|d| d.as_array()) {
-        Some(array) => array,
-        _ => {
-            error!("Input JSON must be an object with a 'data' key containing an array.");
-            return false;
-        }
+    let data_array = if data.is_array() {
+        data.as_array()
+    } else {
+        data.get("data").and_then(|d| d.as_array())
     };
 
-  
-    if data_array.is_empty() {
-        return true;
-    }
+    match data_array {
+        Some(array) => {
+            
+            if array.is_empty() {
+                info!("Received empty data array. Proceeding.");
+                return Ok(array);
+            }
 
-    for item in data_array {
-        if !validate_item(item).await {
-            error!("Invalid item in data array: {:?}", item);
-            return false;
+            for item in array {
+                if !validate_item(item).await {
+                    let error_msg = format!("Invalid item in data array: {:?}", item);
+                    error!("{}", error_msg);
+                    return Err(error_msg);
+                }
+            }
+            Ok(array) 
+        }
+        None => {
+            let error_msg = "Input data is not an array and does not contain a 'data' key with an array value.".to_string();
+            info!("{}", error_msg); 
+            Err(error_msg)
         }
     }
-
-    true
 }
 
 async fn validate_item(item: &Value) -> bool {
@@ -36,7 +42,7 @@ async fn validate_item(item: &Value) -> bool {
         && item.get("color").and_then(|v| v.as_str()).is_some()
         && item.get("sensor_data").map(|v| v.is_object()).unwrap_or(false)
         && item.get("sensor_data").and_then(|sd| sd.get("temperature")).and_then(|t| t.as_f64()).is_some()
-        && item.get("sensor_data").and_then(|sd| sd.get("humidity")).and_then(|h| h.as_f64()).is_some() 
+        && item.get("sensor_data").and_then(|sd| sd.get("humidity")).and_then(|h| h.as_f64()).is_some()
         && item.get("timestamp").and_then(|v| v.as_str()).is_some()
         && item.get("energy_consume").and_then(|v| v.as_f64()).is_some()
         && item.get("energy_cost").and_then(|v| v.as_f64()).is_some()
@@ -45,22 +51,14 @@ async fn validate_item(item: &Value) -> bool {
 //create function
 pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, String> {
     
-    let data_array = match data.get("data").and_then(|d| d.as_array()) {
-        Some(array) => array,
-        None => return Err("Input JSON must be an object with a 'data' key containing an array.".to_string())
-    };
+   
+    let data_array = validate_and_get_data_array(data).await?;
 
    
     if data_array.is_empty() {
-        info!("Received empty data array. No nodes will be created.");
-        return Ok(false); 
+        info!("Received empty validated data array. No nodes will be created.");
+        return Ok(false);
     }
-
-   
-    if !validate_data(data).await {
-        return Err("Data validation failed".to_string());
-    }
-
   
     let neo4j_data: Vec<HashMap<String, Value>> = data_array.iter().map(|item| {
         let mut record = HashMap::new();
@@ -149,9 +147,9 @@ pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, St
                 info!("Processed: {} Node(s)", processed_count);
                 Ok(true)
             } else {
-                let warning_msg = "No new Nodes were created (UUIDs might already exist)";
+                let warning_msg = "No new Nodes were created (UUIDs might already exist or data was empty)";
                 warn!("{}", warning_msg);
-                Ok(false)
+                Ok(false) 
             }
         }
         Err(e) => {
@@ -164,8 +162,6 @@ pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, St
 
 pub async fn get_specific_uuid_node(uuid: &str, graph: &Graph) -> Option<Value> {
    
-    
-  
     let query = query(r#"
         MATCH (uuidNode:UUID {id: $uuid})
         RETURN uuidNode.id AS uuid,
@@ -191,10 +187,6 @@ pub async fn get_specific_uuid_node(uuid: &str, graph: &Graph) -> Option<Value> 
                 let energy_consume: f64 = row.get("energy_consume").unwrap_or(0.0);
                 let energy_cost: f64 = row.get("energy_cost").unwrap_or(0.0);
 
-                
-                
-                
-             
                 Some(json!({
                     "uuid": uuid_val,
                     "color": color_val,
