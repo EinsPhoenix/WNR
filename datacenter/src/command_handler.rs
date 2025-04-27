@@ -27,7 +27,7 @@ pub async fn router(command: &str, db_handler: Arc<db::DatabaseCluster>) -> Resu
         }
         "load" => {
             info!{"Load Json from Server..."};
-            let db = db_handler.get_primary_db().await;
+            let db = db_handler.get_main_db().await;
             match process_large_json_file(&db).await{
                 Ok(_) => {
                     info!("Successfull add");

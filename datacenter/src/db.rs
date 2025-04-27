@@ -6,10 +6,9 @@ use tokio::sync::OnceCell;
 use crate::db_operations::admin::remove_test_database;
 
 pub struct DatabaseCluster {
-    primary_nodes: Vec<Arc<Graph>>,
-    secondary_nodes: Vec<Arc<Graph>>,
+    main_node: Arc<Graph>,
     system_nodes: Vec<Arc<Graph>>,
-    test_db: Option<Arc<Graph>>, 
+    test_db: Option<Arc<Graph>>,
 }
 
 impl DatabaseCluster {
@@ -18,46 +17,29 @@ impl DatabaseCluster {
         dotenv::dotenv().ok();
 
         let is_test = env::var("TEST").map_err(|e| {
-            error!("Failed to read NEO4J_URI_WRITE_1: {}", e);
-            DbError::ConnectionError(e.to_string())
+            error!("Failed to read TEST environment variable: {}", e);
+            DbError::ConnectionError(format!("Failed to read TEST environment variable: {}", e))
         })?;
 
-       
-        let uri_server1 = env::var("NEO4J_URI_WRITE_1").map_err(|e| {
+        let uri_main = env::var("NEO4J_URI_WRITE_1").map_err(|e| {
             error!("Failed to read NEO4J_URI_WRITE_1: {}", e);
-            DbError::ConnectionError(e.to_string())
-        })?;
-        let uri_server2 = env::var("NEO4J_URI_WRITE_2").map_err(|e| {
-            error!("Failed to read NEO4J_URI_WRITE_2: {}", e);
-            DbError::ConnectionError(e.to_string())
-        })?;
-        let uri_server3 = env::var("NEO4J_URI_READ_3").map_err(|e| {
-            error!("Failed to read NEO4J_URI_READ_3: {}", e);
             DbError::ConnectionError(e.to_string())
         })?;
         let uri_server_admin = env::var("NEO4j_URI_ADMIN").map_err(|e| {
-            error!("Failed to NEO4j_URI_ADMIN: {}", e);
+            error!("Failed to read NEO4j_URI_ADMIN: {}", e);
             DbError::ConnectionError(e.to_string())
         })?;
-        
 
-      
-        let primary_nodes = vec![Arc::new(Self::connect_db(&uri_server1, 1).await?)];
-        let secondary_nodes = vec![
-            Arc::new(Self::connect_db(&uri_server3, 1).await?),
-            Arc::new(Self::connect_db(&uri_server2, 1).await?),
-        ];
+        let main_node = Arc::new(Self::connect_db(&uri_main, 1).await?);
         let system_nodes = vec![Arc::new(Self::connect_db(&uri_server_admin, 0).await?)];
-       
 
-        let mut test_db = None; 
+        let mut test_db = None;
 
         if is_test.to_string() == "true" {
             info!("TEST environment variable is set. Initializing test database...");
-            
+
             let system_db_conn = Arc::clone(&system_nodes[0]);
 
-          
             info!("Ensuring 'Test' database exists...");
             let create_db_query = query("CREATE DATABASE Test IF NOT EXISTS");
             match system_db_conn.run(create_db_query).await {
@@ -67,11 +49,9 @@ impl DatabaseCluster {
                     error!("Continuing without dedicated test database connection due to creation error.");
                 }
             }
-            
+
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-
-            
             info!("Connecting to 'Test' database...");
             match Self::connect_db(&uri_server_admin, 2).await {
                 Ok(conn) => {
@@ -80,13 +60,11 @@ impl DatabaseCluster {
                 }
                 Err(e) => {
                     error!("Failed to connect to 'Test' database: {:?}. Test database connection will be unavailable.", e);
-                  
                 }
             }
         } else {
             info!("TEST environment variable not set. Skipping test database initialization.");
             let system_db_conn = Arc::clone(&system_nodes[0]);
-
 
             info!("Checking if 'Test' database exists before potential removal...");
             let check_db_query = query("SHOW DATABASES WHERE name = 'Test' YIELD name");
@@ -94,42 +72,33 @@ impl DatabaseCluster {
                 Ok(mut stream) => {
                     match stream.next().await {
                         Ok(Some(_row)) => {
-                    
                             info!("'Test' database found. Attempting removal...");
                             match remove_test_database(&system_db_conn).await {
                                 Ok(_) => info!("'Test' database removed successfully."),
                                 Err(e) => {
-                                   
                                     error!("Failed to remove 'Test' database: {:?}", e);
-                                    
                                 }
                             }
                         }
                         Ok(None) => {
-                            
                             info!("'Test' database does not exist. No removal needed.");
                         }
                         Err(e) => {
                             error!("Error while checking 'Test' database existence stream: {:?}", e);
-                            
                         }
                     }
                 }
                 Err(e) => {
                     error!("Failed to execute query to check for 'Test' database existence: {:?}", e);
-                    
                 }
             }
         }
 
         info!("DatabaseCluster successfully initialized.");
-
-        info!("DatabaseCluster successfully initialized.");
         Ok(Self {
-            primary_nodes,
-            secondary_nodes,
+            main_node,
             system_nodes,
-            test_db, 
+            test_db,
         })
     }
 
@@ -148,13 +117,13 @@ impl DatabaseCluster {
             DbError::ConnectionError("Missing DEFAULT_DATABASE".into())
         })?;
 
-        let graph_result = match usecase { 
-            0 => { 
+        let graph_result = match usecase {
+            0 => {
                 let config = ConfigBuilder::default()
                     .uri(uri)
                     .user(&username)
                     .password(&password)
-                    .db("system") 
+                    .db("system")
                     .build()
                     .map_err(|e| {
                         error!("Failed to build config for system db: {:?}", e);
@@ -162,12 +131,12 @@ impl DatabaseCluster {
                     })?;
                 Graph::connect(config).await
             },
-            1 => { 
+            1 => {
                  let config = ConfigBuilder::default()
                     .uri(uri)
                     .user(&username)
                     .password(&password)
-                    .db(default_database.as_str()) 
+                    .db(default_database.as_str())
                     .build()
                     .map_err(|e| {
                         error!("Failed to build config for standard db: {:?}", e);
@@ -175,12 +144,12 @@ impl DatabaseCluster {
                     })?;
                 Graph::connect(config).await
             }
-            2 => { 
+            2 => {
                 let config = ConfigBuilder::default()
                     .uri(uri)
                     .user(&username)
                     .password(&password)
-                    .db("Test") 
+                    .db("Test")
                     .build()
                     .map_err(|e| {
                         error!("Failed to build config for test db: {:?}", e);
@@ -188,7 +157,7 @@ impl DatabaseCluster {
                     })?;
                 Graph::connect(config).await
             }
-            _ => { 
+            _ => {
                 error!("Invalid usecase provided for connect_db: {}", usecase);
                 return Err(DbError::ConnectionError(format!("Invalid usecase: {}", usecase)));
             }
@@ -203,20 +172,14 @@ impl DatabaseCluster {
         })
     }
 
-    pub async fn get_primary_db(&self) -> Arc<Graph> {
-        Arc::clone(&self.primary_nodes[0])
-    }
-
-    pub async fn get_read_db(&self, number: usize) -> Arc<Graph> {
-        let index = number % self.secondary_nodes.len();
-        Arc::clone(&self.secondary_nodes[index])
+    pub async fn get_main_db(&self) -> Arc<Graph> {
+        Arc::clone(&self.main_node)
     }
 
     pub async fn get_system_db(&self) -> Arc<Graph> {
         Arc::clone(&self.system_nodes[0])
     }
 
-    
     pub async fn get_test_db(&self) -> Result<Arc<Graph>, DbError> {
         match &self.test_db {
             Some(db) => Ok(Arc::clone(db)),
@@ -224,7 +187,6 @@ impl DatabaseCluster {
         }
     }
 }
-
 
 pub static DB: OnceCell<Arc<DatabaseCluster>> = OnceCell::const_new();
 

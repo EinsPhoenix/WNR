@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 
 
-async fn validate_and_get_data_array<'a>(data: &'a Value) -> Result<&'a Vec<Value>, String> {
+pub async fn validate_and_get_data_array<'a>(data: &'a Value) -> Result<&'a Vec<Value>, String> {
     
     let data_array = if data.is_array() {
         data.as_array()
@@ -46,6 +46,7 @@ async fn validate_item(item: &Value) -> bool {
         && item.get("timestamp").and_then(|v| v.as_str()).is_some()
         && item.get("energy_consume").and_then(|v| v.as_f64()).is_some()
         && item.get("energy_cost").and_then(|v| v.as_f64()).is_some()
+        && item.get("id").and_then(|v| v.as_f64()).is_some()
 }
 
 //create function
@@ -81,6 +82,13 @@ pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, St
                 record.insert("energy_cost".to_string(), Value::Number(num));
             }
         }
+
+        if let Some(id) = item.get("id").and_then(|v| v.as_f64()) {
+            if let Some(num) = serde_json::Number::from_f64(id) {
+                record.insert("id".to_string(), Value::Number(num));
+            }
+        }
+
         if let Some(sensor_data) = item.get("sensor_data").and_then(|v| v.as_object()) {
             if let Some(temp) = sensor_data.get("temperature").and_then(|v| v.as_f64()) {
                 if let Some(num) = serde_json::Number::from_f64(temp) {

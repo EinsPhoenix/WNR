@@ -9,6 +9,8 @@ use crate::db_operations::crud::{get_specific_uuid_node, get_all_uuid_nodes, get
 use crate::db_operations::specificoperations::{get_temperature_humidity_at_time, get_nodes_with_temperature_or_humidity, get_nodes_in_time_range, get_nodes_with_color, get_nodes_with_energy_cost, get_nodes_with_energy_consume};
 use crate::db_operations::relationshipexport::export_all_with_relationships;
 
+use crate::db_operations::sharding::get_item_by_id;
+
 use super::publisher::{publish_result, publish_error_response}; 
 
 pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &Arc<db::DatabaseCluster>) -> Result<(), Box<dyn Error>> {
@@ -36,9 +38,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
     };
 
     // Get database connections
-    let read_conn_1 = db_handler.get_read_db(0).await;
-    let read_conn_2 = db_handler.get_read_db(1).await;
-    let write_conn = db_handler.get_primary_db().await;
+    let write_conn = db_handler.get_main_db().await;
 
     // Process based on the "request" field
     match json_value.get("request").and_then(Value::as_str) {
@@ -48,16 +48,16 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             if let Some(payload_data) = json_value.get("payload") {
                 if let Some(uuid_array) = payload_data.as_array() {
                     for uuid_obj in uuid_array {
-                        if let Some(uuid) = uuid_obj.get("uuid").and_then(Value::as_str) {
+                        if let Some(uuid) = uuid_obj.get("uuid").and_then(Value::as_i64) {
                             info!("Processing UUID: {} for Client-ID: {}", uuid, requesting_client_id);
                             let response_topic = format!("rust/uuid/{}", requesting_client_id); 
 
-                            match get_specific_uuid_node(uuid, &read_conn_1).await {
-                                Some(node) => {
+                            match get_item_by_id(&write_conn, uuid).await {
+                                Ok(Some(node)) => {
                                     info!("Found node for UUID {}", uuid);
                                     publish_result(client, &response_topic, &node).await?;
                                 },
-                                None => {
+                                Ok(None) => {
                                     warn!("No node found for UUID: {}", uuid); 
                                     let empty_response = json!({
                                         "uuid": uuid,
@@ -65,10 +65,15 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                                         "message": "No data found for this UUID"
                                     });
                                     publish_result(client, &response_topic, &empty_response).await?;
+                                },
+                                Err(e) => {
+                                    error!("Error retrieving node for UUID {}: {}", uuid, e);
+                                    
+                                    publish_error_response(client, &requesting_client_id, "uuid", &format!("Error retrieving data for UUID {}: {}", uuid, e)).await?;
                                 }
                             }
                         } else {
-                             warn!("Invalid item in UUID payload array (missing 'uuid' string): {:?}", uuid_obj);
+                             warn!("Invalid item in UUID payload array (missing 'uuid' i64): {:?}", uuid_obj);
                            
                         }
                     }
@@ -85,7 +90,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         Some("all") => {
             info!("Processing 'all' request for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/all", requesting_client_id);
-            match get_all_uuid_nodes(&read_conn_2).await {
+            match get_all_uuid_nodes(&write_conn).await {
                 Some(all_nodes) => {
                     publish_result(client, &response_topic, &all_nodes).await?;
                 },
@@ -100,7 +105,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             info!("Processing 'color' data for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/color", requesting_client_id);
             if let Some(color_data) = json_value.get("data").and_then(Value::as_str) {
-                match get_nodes_with_color(color_data, &read_conn_2).await {
+                match get_nodes_with_color(color_data, &write_conn).await {
                     Some(processed) => { 
                         publish_result(client, &response_topic, &processed).await?;
                     },
@@ -122,7 +127,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             let end = json_value.get("end").and_then(Value::as_str);
 
             if let (Some(start_time), Some(end_time)) = (start, end) {
-                match get_nodes_in_time_range(start_time, end_time, &read_conn_1).await {
+                match get_nodes_in_time_range(start_time, end_time, &write_conn).await {
                     Some(nodes) => {
                         publish_result(client, &response_topic, &nodes).await?;
                     },
@@ -144,7 +149,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
              let humidity = json_value.get("humidity").and_then(Value::as_f64);
 
              if let (Some(temp_val), Some(humidity_val)) = (temp, humidity) {
-                 match get_nodes_with_temperature_or_humidity(temp_val, humidity_val, &read_conn_1).await {
+                 match get_nodes_with_temperature_or_humidity(temp_val, humidity_val, &write_conn).await {
                      Some(nodes) => {
                          publish_result(client, &response_topic, &nodes).await?;
                      },
@@ -163,7 +168,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             info!("Processing 'timestamp' data for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/timestamp", requesting_client_id);
             if let Some(timestamp) = json_value.get("data").and_then(Value::as_str) {
-                match get_temperature_humidity_at_time(&read_conn_1, timestamp).await {
+                match get_temperature_humidity_at_time(&write_conn, timestamp).await {
                     Some((temp, humidity)) => {
                         let response = json!({
                             "timestamp": timestamp,
@@ -194,7 +199,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             info!("Processing 'energy_cost' data for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/energy_cost", requesting_client_id);
             if let Some(cost) = json_value.get("data").and_then(Value::as_f64) {
-                match get_nodes_with_energy_cost(cost, &read_conn_2).await {
+                match get_nodes_with_energy_cost(cost, &write_conn).await {
                     Some(nodes) => {
                         publish_result(client, &response_topic, &nodes).await?;
                     },
@@ -213,7 +218,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             info!("Processing 'energy_consume' data for Client-ID: {}", requesting_client_id);
              let response_topic = format!("rust/response/{}/energy_consume", requesting_client_id);
             if let Some(consume) = json_value.get("data").and_then(Value::as_f64) {
-                match get_nodes_with_energy_consume(consume, &read_conn_2).await {
+                match get_nodes_with_energy_consume(consume, &write_conn).await {
                     Some(nodes) => {
                         publish_result(client, &response_topic, &nodes).await?;
                     },
@@ -231,7 +236,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         Some("newest") => {
             info!("Processing 'newest' request for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/newest", requesting_client_id);
-            match get_newest_uuid(&read_conn_1).await {
+            match get_newest_uuid(&write_conn).await {
                 Some(nodes) => { 
                     publish_result(client, &response_topic, &nodes).await?;
                 },
@@ -278,7 +283,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             info!("Processing 'relation' data export for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/relation", requesting_client_id);
            
-            match export_all_with_relationships(&read_conn_1, Some(1000)).await { 
+            match export_all_with_relationships(&write_conn, Some(1000)).await { 
                 Some(nodes) => {
                     publish_result(client, &response_topic, &nodes).await?;
                 },
@@ -296,7 +301,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             if let Some(page_number) = json_value.get("data").and_then(Value::as_u64).map(|v| v as usize) {
                
                  let page_index = if page_number > 0 { page_number - 1 } else { 0 };
-                match get_paginated_uuids(&read_conn_2, page_index).await { 
+                match get_paginated_uuids(&write_conn, page_index).await { 
                     Some(nodes) => {
                         publish_result(client, &response_topic, &nodes).await?;
                     },

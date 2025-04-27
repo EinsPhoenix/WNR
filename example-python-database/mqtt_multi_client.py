@@ -385,7 +385,7 @@ def run_test_client(client_name, request_type, params):
     client = MqttClient(client_name)
 
     if request_type == "uuid":
-        uuid_val = params.get("uuid", "abc123xyz001")
+        uuid_val = params.get("uuid", 1)
         return client.send_request(
             {"request": "uuid", "payload": [{"uuid": uuid_val}]}, "uuid"
         )
@@ -441,7 +441,7 @@ def run_test_client_with_metrics(
         "uuid": lambda: client.send_request(
             {
                 "request": "uuid",
-                "payload": [{"uuid": params.get("uuid", "abc123xyz001")}],
+                "payload": [{"uuid": params.get("uuid", 1)}],
             },
             "uuid",
         ),
@@ -528,7 +528,7 @@ def run_multiple_clients(num_clients=5, test_type=None):
         # Prepare parameters with slight variations
         params = {}
         if selected_test == "uuid":
-            params["uuid"] = f"test-uuid-{i+1}"
+            params["uuid"] = i + 1
         elif selected_test == "color":
             colors = ["red", "green", "blue", "yellow", "purple"]
             params["color"] = colors[i % len(colors)]
