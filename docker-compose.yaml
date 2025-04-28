@@ -39,7 +39,7 @@ services:
             # NEO4J_fabric_graph_4_name: dbshard4
             # NEO4J_fabric_graph_4_uri: neo4j://db-shard-4-core-1:7687,neo4j://db-shard-4-core-2:7687,neo4j://db-shard-4-core-3:7687
 
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -67,7 +67,7 @@ services:
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
 
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-1-core-1:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -90,7 +90,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-1-core-1:5000,db-shard-1-core-2:5000,db-shard-1-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-1-core-2:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -113,7 +113,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-1-core-1:5000,db-shard-1-core-2:5000,db-shard-1-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-1-core-3:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -138,7 +138,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-2-core-1:5000,db-shard-2-core-2:5000,db-shard-2-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-2-core-1:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -161,7 +161,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-2-core-1:5000,db-shard-2-core-2:5000,db-shard-2-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-2-core-2:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -184,7 +184,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-2-core-1:5000,db-shard-2-core-2:5000,db-shard-2-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-2-core-3:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -210,7 +210,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-3-core-1:5000,db-shard-3-core-2:5000,db-shard-3-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-3-core-1:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -233,7 +233,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-3-core-1:5000,db-shard-3-core-2:5000,db-shard-3-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-3-core-2:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -256,7 +256,7 @@ services:
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-3-core-1:5000,db-shard-3-core-2:5000,db-shard-3-core-3:5000"
             NEO4J_causal__clustering_expected__core__cluster__size: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-3-core-3:7687"
-            NEO4JLABS_PLUGINS: "apoc"
+            NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -282,7 +282,7 @@ services:
     #         NEO4J_causal__clustering_initial__discovery__members: "db-shard-4-core-1:5000,db-shard-4-core-2:5000,db-shard-4-core-3:5000"
     #         NEO4J_causal__clustering_expected__core__cluster__size: "3"
     #         NEO4J_dbms_connector_bolt_advertised__address: "db-shard-4-core-1:7687"
-    #         NEO4JLABS_PLUGINS: "apoc"
+    #         NEO4JLABS_PLUGINS: '["apoc"]'
     #         NEO4J_dbms_security_procedures_unrestricted: apoc.*
     #         NEO4J_dbms_security_procedures_allowlist: apoc.*
     #         NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -307,7 +307,7 @@ services:
     #         NEO4J_causal__clustering_expected__core__cluster__size: "3"
     #         NEO4J_dbms_connector_bolt_advertised__address: "db-shard-4-core-2:7687"
 
-    #         NEO4JLABS_PLUGINS: "apoc"
+    #         NEO4JLABS_PLUGINS: '["apoc"]'
     #         NEO4J_dbms_security_procedures_unrestricted: apoc.*
     #         NEO4J_dbms_security_procedures_allowlist: apoc.*
     #         NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
@@ -332,7 +332,7 @@ services:
     #         NEO4J_causal__clustering_expected__core__cluster__size: "3"
     #         NEO4J_dbms_connector_bolt_advertised__address: "db-shard-4-core-3:7687"
 
-    #         NEO4JLABS_PLUGINS: "apoc"
+    #         NEO4JLABS_PLUGINS: '["apoc"]'
     #         NEO4J_dbms_security_procedures_unrestricted: apoc.*
     #         NEO4J_dbms_security_procedures_allowlist: apoc.*
     #         NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G} 
