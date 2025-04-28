@@ -9,7 +9,7 @@ use crate::db_operations::crud::{get_specific_uuid_node, get_all_uuid_nodes, get
 use crate::db_operations::specificoperations::{get_temperature_humidity_at_time, get_nodes_with_temperature_or_humidity, get_nodes_in_time_range, get_nodes_with_color, get_nodes_with_energy_cost, get_nodes_with_energy_consume};
 use crate::db_operations::relationshipexport::export_all_with_relationships;
 
-use crate::db_operations::sharding::get_item_by_id;
+use crate::db_operations::sharding::{get_data_by_id,get_all_data};
 
 use super::publisher::{publish_result, publish_error_response}; 
 
@@ -52,12 +52,12 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                             info!("Processing UUID: {} for Client-ID: {}", uuid, requesting_client_id);
                             let response_topic = format!("rust/uuid/{}", requesting_client_id); 
 
-                            match get_item_by_id(&write_conn, uuid).await {
-                                Ok(Some(node)) => {
+                            match get_data_by_id(uuid, &write_conn).await {
+                                Ok(node) => {
                                     info!("Found node for UUID {}", uuid);
                                     publish_result(client, &response_topic, &node).await?;
                                 },
-                                Ok(None) => {
+                                Err(e) => {
                                     warn!("No node found for UUID: {}", uuid); 
                                     let empty_response = json!({
                                         "uuid": uuid,
@@ -90,13 +90,13 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         Some("all") => {
             info!("Processing 'all' request for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/all", requesting_client_id);
-            match get_all_uuid_nodes(&write_conn).await {
-                Some(all_nodes) => {
+            match get_all_data(&write_conn).await {
+                Ok(all_nodes) => {
                     publish_result(client, &response_topic, &all_nodes).await?;
                 },
-                None => { 
-                    error!("Failed to retrieve all UUID nodes for Client-ID: {}", requesting_client_id);
-                    return publish_error_response(client, &requesting_client_id, "all", "Failed to get all UUID nodes").await;
+                Err(e) => { 
+                    error!("Failed to retrieve all UUID nodes for Client-ID: {}: {}", requesting_client_id, e);
+                    return publish_error_response(client, &requesting_client_id, "all", &format!("Failed to get all UUID nodes: {}", e)).await;
                 }
             }
         },
