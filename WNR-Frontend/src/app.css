@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+:root {
+    --main-background-color: #64A6BD;
+    --primary-color: #F4CAE0;
+    --secondary-color: #D7B9D5;
+    --background-color: #64A6BD;
+    --background2-color: #ADA7C9;
+    --text-color: #F4CAE0;
+}
