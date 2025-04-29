@@ -1,5 +1,5 @@
 use neo4rs::{Graph, query};
-use log::{error};
+use log::{error, info};
 use serde_json::{json, Value};
 
 pub async fn get_temperature_humidity_at_time(graph: &Graph, timestamp: &str) -> Option<(f64, f64)> {
@@ -128,20 +128,33 @@ pub async fn get_nodes_with_energy_consume(energy_consume: f64, graph: &Graph) -
 
 // Funktion, um alle Nodes mit einer bestimmten Farbe zu bekommen
 pub async fn get_nodes_with_color(color: &str, graph: &Graph) -> Option<Value> {
+    
     let query = query(r#"
-        MATCH (uuid:UUID)-[:HAS_COLOR]->(color:Color {value: $color})
-        RETURN uuid
+        USE fabric.dbshard1
+        MATCH (id_node)-[:HAS_COLOR]->(color_node:Color {value: $color})
+        OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
+        RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
     "#)
     .param("color", color);
 
     match graph.execute(query).await {
         Ok(mut result) => {
-            let mut uuids = Vec::new();
+           
+            let mut nodes_data = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let node: Value = row.get("uuid").unwrap();
-                uuids.push(node);
+               
+                let id_val: Value = row.get("id").unwrap_or(Value::Null);
+                let uuid_val: Value = row.get("uuid").unwrap_or(Value::Null);
+                let color_val: Value = row.get("color").unwrap_or(Value::Null);
+
+                nodes_data.push(json!({
+                    "id": id_val,
+                    "uuid": uuid_val,
+                    "color": color_val
+                }));
             }
-            Some(json!(uuids))
+            info!("Found {} nodes with color {}", nodes_data.len(), color);
+            Some(json!(nodes_data))
         },
         Err(e) => {
             error!("Failed to execute Neo4j query: {}", e);
