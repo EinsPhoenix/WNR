@@ -6,7 +6,7 @@ use tokio::net::TcpStream;
 
 use crate::db;
 // use crate::db_operations::crud::create_new_relation;
-use crate::db_operations::sharding::create_new_nodes;
+use crate::db_operations::sharding::*;
 use crate::command_handler::router;
 
 pub async fn process_json(json: &Value, db_handler: Arc<db::DatabaseCluster>, socket: &mut TcpStream) -> Result<(), String> {
@@ -24,8 +24,18 @@ pub async fn process_json(json: &Value, db_handler: Arc<db::DatabaseCluster>, so
                 send_response(socket, &result).await?;
                 Ok(())
             },
-            Some("data") => {
-                let result = handle_data(json, db_handler).await;
+            Some("robotdata") => {
+                let result = handle_robotdata(json, db_handler).await;
+                send_response(socket, &result).await?;
+                Ok(())
+            },
+            Some("energydata") => {
+                let result = handle_energydata(json, db_handler).await;
+                send_response(socket, &result).await?;
+                Ok(())
+            },
+            Some("sensordata") => {
+                let result = handle_sensordata(json, db_handler).await;
                 send_response(socket, &result).await?;
                 Ok(())
             },
@@ -69,13 +79,41 @@ async fn handle_command(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> R
     }
 }
 
-async fn handle_data(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+async fn handle_robotdata(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
     if let Some(data) = json.get("data") {
         let primary_conn = db_handler.get_main_db().await;
       
         match create_new_nodes(data, &primary_conn).await {
             Ok(0) => Ok("No new nodes created (data might be empty or nodes already exist)".to_string()),
-            Ok(count) => Ok(format!("{} nodes created successfully", count)), // Handles count > 0
+            Ok(count) => Ok(format!("{} nodes created successfully", count)), 
+            Err(error_msg) => Err(error_msg),
+        }
+    } else {
+        Err("No 'data' field found in JSON".to_string())
+    }
+}
+
+async fn handle_energydata(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+    if let Some(data) = json.get("data") {
+        let primary_conn = db_handler.get_main_db().await;
+        // Call the function to handle energy data
+        match create_new_energy_nodes(data, &primary_conn).await {
+            Ok(0) => Ok("No new nodes created (data might be empty or nodes already exist)".to_string()),
+            Ok(count) => Ok(format!("{} nodes created successfully", count)), 
+            Err(error_msg) => Err(error_msg),
+        }
+    } else {
+        Err("No 'data' field found in JSON".to_string())
+    }
+}
+
+async fn handle_sensordata(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+    if let Some(data) = json.get("data") {
+        let primary_conn = db_handler.get_main_db().await;
+        // Call the function to handle sensor data
+        match create_new_sensor_nodes(data, &primary_conn).await {
+            Ok(0) => Ok("No new nodes created (data might be empty or nodes already exist)".to_string()),
+            Ok(count) => Ok(format!("{} nodes created successfully", count)), 
             Err(error_msg) => Err(error_msg),
         }
     } else {

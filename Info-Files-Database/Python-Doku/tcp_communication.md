@@ -91,25 +91,98 @@ This section describes how any client (not just the Python example) should commu
         }
         ```
         *(Example commands might be `init`, `reset`, `status`, etc., depending on the server's `command_handler::router` implementation)*
-    *   **`data`**: For sending structured data, often for database operations. The exact structure of the nested `data` object depends on what the server's `handle_data` function (and subsequently `create_new_relation`) expects.
-        ```json
-        {
-          "type": "data",
-            "data": [
+    *   **`robotdata`**: Zum Senden vollständiger Datensätze, die in allen drei Datenbank-Shards gespeichert werden sollen.
+        *   **Payload-Struktur:** Erwartet ein JSON-Objekt mit einem `type`-Feld (`"robotdata"`) und einem `data`-Feld. Das `data`-Feld muss ein **Array** von Objekten sein. Jedes Objekt im Array repräsentiert einen vollständigen Datensatz und **muss** die folgenden Felder enthalten:
+            *   `id`: Eine numerische ID (wird derzeit vom Server ignoriert und durch eine global generierte ID ersetzt).
+            *   `uuid`: Eine eindeutige String-ID.
+            *   `color`: Ein String, der die Farbe repräsentiert.
+            *   `sensor_data`: Ein Objekt, das die Sensordaten enthält:
+                *   `temperature`: Eine Fließkommazahl für die Temperatur.
+                *   `humidity`: Eine Fließkommazahl für die Luftfeuchtigkeit.
+            *   `timestamp`: Ein String, der den Zeitstempel repräsentiert (z. B. im ISO 8601-Format).
+            *   `energy_consume`: Eine Fließkommazahl für den Energieverbrauch.
+            *   `energy_cost`: Eine Fließkommazahl für die Energiekosten.
+        *   **Funktionsweise:** Der Server validiert jedes Objekt im `data`-Array. Für jedes gültige Objekt wird eine neue globale ID generiert. Anschließend werden die entsprechenden Daten über die drei Shards verteilt und gespeichert (`create_new_nodes` in `sharding.rs`).
+        *   **Beispiel:**
+            ```json
+            {
+              "type": "robotdata",
+              "data": [
                 {
-                    "uuid": "test-uuid-1",
-                    "color": "blue",
-                    "sensor_data": {
-                    "temperature": 22.1,
-                    "humidity": 60
-                    },
-                    "timestamp": "2025-03-10 14:30:00",
-                    "energy_consume": 0.3,
-                    "energy_cost": 0.007
+                  "uuid": "robot-uuid-xyz",
+                  "color": "red",
+                  "sensor_data": {
+                    "temperature": 25.5,
+                    "humidity": 55.2
+                  },
+                  "timestamp": "2025-04-30T10:00:00Z",
+                  "energy_consume": 1.2,
+                  "energy_cost": 0.15
                 }
-            ]
-        }
-        ```
+                // Weitere Objekte können hier folgen
+              ]
+            }
+            ```
+        *   **Wichtige Hinweise:**
+            *   Das `data`-Feld **muss** ein Array sein, auch wenn nur ein Datensatz gesendet wird.
+            *   Alle Felder innerhalb der Objekte im `data`-Array sind **erforderlich** und müssen den korrekten Datentyp haben, sonst schlägt die Validierung fehl (`validate_new_item` in `sharding.rs`).
+            *   Die `id` im gesendeten Payload wird nicht verwendet; der Server weist eine eigene, eindeutige globale ID zu.
+
+    *   **`energydata`**: Zum Senden spezifischer Energiedaten, die nur in Shard 3 gespeichert werden sollen.
+        *   **Payload-Struktur:** Erwartet ein JSON-Objekt mit einem `type`-Feld (`"energydata"`) und einem `data`-Feld. Das `data`-Feld muss ein **Array** von Objekten sein. Jedes Objekt im Array **muss** die folgenden Felder enthalten:
+            *   `timestamp`: Ein String, der den Zeitstempel repräsentiert.
+            *   `energy_consume`: Eine Fließkommazahl für den Energieverbrauch.
+            *   `energy_cost`: Eine Fließkommazahl für die Energiekosten.
+        *   **Funktionsweise:** Der Server validiert jedes Objekt im `data`-Array (`validate_new_energydata` in `sharding.rs`). Für jedes gültige Objekt werden die Daten in Shard 3 gespeichert (`create_new_energy_nodes` in `sharding.rs`). Es wird **keine** globale ID verwendet oder Daten in anderen Shards gespeichert.
+        *   **Beispiel:**
+            ```json
+            {
+              "type": "energydata",
+              "data": [
+                {
+                  "timestamp": "2025-04-30T11:00:00Z",
+                  "energy_consume": 0.8,
+                  "energy_cost": 0.10
+                },
+                {
+                  "timestamp": "2025-04-30T11:05:00Z",
+                  "energy_consume": 0.9,
+                  "energy_cost": 0.11
+                }
+              ]
+            }
+            ```
+        *   **Wichtige Hinweise:**
+            *   Das `data`-Feld **muss** ein Array sein.
+            *   Alle Felder (`timestamp`, `energy_consume`, `energy_cost`) sind **erforderlich**.
+
+    *   **`sensordata`**: Zum Senden spezifischer Sensordaten, die nur in Shard 2 gespeichert werden sollen.
+        *   **Payload-Struktur:** Erwartet ein JSON-Objekt mit einem `type`-Feld (`"sensordata"`) und einem `data`-Feld. Das `data`-Feld muss ein **Array** von Objekten sein. Jedes Objekt im Array **muss** die folgenden Felder enthalten:
+            *   `timestamp`: Ein String, der den Zeitstempel repräsentiert.
+            *   `temperature`: Eine Fließkommazahl für die Temperatur.
+            *   `humidity`: Eine Fließkommazahl für die Luftfeuchtigkeit.
+        *   **Funktionsweise:** Der Server validiert jedes Objekt im `data`-Array (`validate_new_sensordata` in `sharding.rs`). Für jedes gültige Objekt werden die Daten in Shard 2 gespeichert (`create_new_sensor_nodes` in `sharding.rs`). Es wird **keine** globale ID verwendet oder Daten in anderen Shards gespeichert.
+        *   **Beispiel:**
+            ```json
+            {
+              "type": "sensordata",
+              "data": [
+                {
+                  "timestamp": "2025-04-30T12:00:00Z",
+                  "temperature": 22.1,
+                  "humidity": 60.5
+                },
+                {
+                  "timestamp": "2025-04-30T12:10:00Z",
+                  "temperature": 22.3,
+                  "humidity": 61.0
+                }
+              ]
+            }
+            ```
+        *   **Wichtige Hinweise:**
+            *   Das `data`-Feld **muss** ein Array sein.
+            *   Alle Felder (`timestamp`, `temperature`, `humidity`) sind **erforderlich**.
 
 6.  **Response Structure:** The server typically replies with a JSON object containing:
     *   `status`: A string, either `"success"` or `"error"`.

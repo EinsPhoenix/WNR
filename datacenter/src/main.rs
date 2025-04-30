@@ -49,7 +49,6 @@ async fn main() -> io::Result<()> {
 
     let db_mqtt_handler_clone = Arc::clone(&db_handler);
 
-   
     thread::spawn(move || {
         info!("Spawning dedicated thread for MQTT client...");
         let rt = match tokio::runtime::Runtime::new() {

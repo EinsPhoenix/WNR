@@ -3,7 +3,6 @@ use log::{error, info, warn};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-
 pub async fn validate_and_get_data_array<'a>(data: &'a Value) -> Result<&'a Vec<Value>, String> {
     
     let data_array = if data.is_array() {
@@ -52,10 +51,8 @@ async fn validate_item(item: &Value) -> bool {
 //create function
 pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, String> {
     
-   
     let data_array = validate_and_get_data_array(data).await?;
 
-   
     if data_array.is_empty() {
         info!("Received empty validated data array. No nodes will be created.");
         return Ok(false);
@@ -217,7 +214,6 @@ pub async fn get_specific_uuid_node(uuid: &str, graph: &Graph) -> Option<Value> 
     }
 }
 
-
 pub async fn get_all_uuid_nodes(graph: &Graph) -> Option<Value> {
     let query = query(r#"
         MATCH (uuidNode:UUID)
@@ -254,7 +250,6 @@ pub async fn get_all_uuid_nodes(graph: &Graph) -> Option<Value> {
                 }));
             }
 
-            
             info!("Returned nodes count: {}", uuids.len());
 
             Some(json!(uuids))
@@ -266,11 +261,9 @@ pub async fn get_all_uuid_nodes(graph: &Graph) -> Option<Value> {
     }
 }
 
-
 pub async fn get_paginated_uuids(graph: &Graph, page: usize) -> Option<Value> {
     const PAGE_SIZE: usize = 25;
     
-  
     let count_query = query(r#"
         MATCH (uuidNode:UUID)
         RETURN count(uuidNode) AS total
@@ -291,17 +284,14 @@ pub async fn get_paginated_uuids(graph: &Graph, page: usize) -> Option<Value> {
         }
     };
     
-    
     let total_pages = if total_count == 0 {
         0
     } else {
         (total_count + PAGE_SIZE - 1) / PAGE_SIZE 
     };
     
-    
     let skip = page * PAGE_SIZE;
     
-   
     let data_query = query(r#"
         MATCH (uuidNode:UUID)-[:HAS_TIMESTAMP]->(timestamp:Timestamp)
         WITH uuidNode, timestamp
@@ -388,7 +378,6 @@ pub async fn delete_uuid_nodes(graph: &Graph, uuids: &[String]) -> Result<usize,
         return Ok(0);
     }
     info!("Attempting to delete nodes with UUIDs: {:?}", uuids);
-
 
     let deletion_query = query(r#"
         UNWIND $uuids AS uuid_to_delete_id

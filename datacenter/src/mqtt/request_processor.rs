@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::db;
 use crate::db_operations::crud::*;
 use crate::db_operations::specificoperations::*;
-
+use crate::db_operations::relationshipexport::*;
 
 use crate::db_operations::sharding::*;
 
@@ -32,7 +32,6 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         None => {
             error!("Missing client_id in request payload: {}", payload_str);
           
-            
             return Err("Missing client_id".into());
         }
     };
@@ -58,19 +57,15 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                                     publish_result(client, &response_topic, &node).await?;
                                 },
                                 Err(e) => {
-                                    warn!("No node found for UUID: {}", uuid); 
+                                    warn!("No node found for UUID: {}: {}", uuid, e); 
                                     let empty_response = json!({
                                         "uuid": uuid,
                                         "found": false,
-                                        "message": "No data found for this UUID"
+                                        "message": format!("No data found for this UUID: {}", e)
                                     });
                                     publish_result(client, &response_topic, &empty_response).await?;
                                 },
-                                Err(e) => {
-                                    error!("Error retrieving node for UUID {}: {}", uuid, e);
-                                    
-                                    publish_error_response(client, &requesting_client_id, "uuid", &format!("Error retrieving data for UUID {}: {}", uuid, e)).await?;
-                                }
+                                
                             }
                         } else {
                              warn!("Invalid item in UUID payload array (missing 'uuid' i64): {:?}", uuid_obj);
@@ -403,7 +398,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         None => {
             error!("Missing 'request' field in payload from Client-ID: {}. Payload: {}", requesting_client_id, payload_str);
           
-             let response_topic = format!("rust/response/{}", requesting_client_id);
+             let _response_topic = format!("rust/response/{}", requesting_client_id);
              return publish_error_response(client, &requesting_client_id, "unknown", "Missing 'request' field in payload").await;
             
         }

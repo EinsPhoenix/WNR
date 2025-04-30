@@ -11,7 +11,6 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
     let payload_str = serde_json::to_string(payload)?;
     let payload_size = payload_str.len();
 
-   
     if payload_size <= MAX_MESSAGE_SIZE {
         info!("Publishing directly (fits within limit) to {}: {} bytes", topic, payload_size);
         client.publish(topic, QoS::AtLeastOnce, false, payload_str).await?;
@@ -20,7 +19,6 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
 
     info!("Large message detected ({} bytes), using pagination for topic {}", payload_size, topic);
 
-   
     let request_id = Uuid::new_v4().to_string();
 
     let array_payload = match payload {
@@ -45,7 +43,6 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
         return Err("MAX_MESSAGE_SIZE too small for pagination".into());
     }
 
-    
     let total_items = array_payload.len();
     let mut items_per_page = 1; 
     if total_items > 0 {
@@ -57,7 +54,6 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
 
     info!("Pagination details: Total Items: {}, Items/Page: ~{}, Total Pages: {}", total_items, items_per_page, total_pages);
 
-
     let mut current_page = 1;
     let mut current_chunk = Vec::new();
     let mut current_chunk_size_estimate = 0; 
@@ -66,8 +62,6 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
         let item_json = serde_json::to_string(&item)?;
         let item_size = item_json.len();
 
-        
-  
         if !current_chunk.is_empty() && current_chunk_size_estimate + item_size + 1 > effective_max_size {
            
             let page_payload = json!({
@@ -91,24 +85,20 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
 
             client.publish(&page_topic, QoS::AtLeastOnce, false, page_json).await?;
 
-          
             current_page += 1;
             current_chunk = Vec::new();
             current_chunk_size_estimate = 0;
         }
 
-       
         current_chunk.push(item);
         current_chunk_size_estimate += item_size + if current_chunk.len() > 1 { 1 } else { 0 }; 
 
-     
         if current_page > total_pages + 1 { 
              error!("Pagination exceeded calculated total pages ({} > {}). Aborting.", current_page, total_pages);
              return Err("Pagination page count exceeded limit".into());
         }
     }
 
-   
     if !current_chunk.is_empty() {
         let page_payload = json!({
             "type": "paginated",
@@ -150,7 +140,6 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
     Ok(())
 }
 
-
 pub async fn publish_result(client: &AsyncClient, topic: &str, payload: &Value) -> Result<(), Box<dyn Error>> {
     let payload_str = serde_json::to_string(payload)?;
     let payload_size = payload_str.len();
@@ -165,7 +154,6 @@ pub async fn publish_result(client: &AsyncClient, topic: &str, payload: &Value) 
 
     Ok(())
 }
-
 
 pub async fn publish_error_response(client: &AsyncClient, client_id: &str, request_type: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let response_topic = format!("rust/response/{}/{}", client_id, request_type);

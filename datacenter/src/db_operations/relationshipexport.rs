@@ -1,47 +1,103 @@
 use neo4rs::{Graph, query};
-use log::{error};
-use serde_json::{Value};
+use log::{error, info};
+use serde_json::Value;
 
 pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) -> Option<Value> {
+   
+    let mut path_count = 0;
+    let max_paths = limit.unwrap_or(usize::MAX);
     
-    let limit_clause = match limit {
-        Some(l) => format!("LIMIT {}", l),
-        None => "".to_string()
-    };
+    let mut all_paths = Vec::new();
     
-    let query_str = format!(r#"
-        MATCH p=()-[]->() 
-        {}  
-        WITH collect(p) AS paths
-        RETURN apoc.convert.toJson(paths) AS json_result;
+    async fn get_shard_paths(graph: &Graph, shard_name: &str, remaining_limit: Option<usize>) -> Result<Value, String> {
+      
+        let limit_clause = match remaining_limit {
+            Some(l) => format!("LIMIT {}", l),
+            None => "".to_string()
+        };
         
-    "#, limit_clause);
-    
-    let query = query(&query_str);
-    
-    match graph.execute(query).await {
-        Ok(mut result) => {
-            if let Ok(Some(row)) = result.next().await {
-                if let Ok(json_str) = row.get::<String>("json_result") {
-                    match serde_json::from_str(&json_str) {
-                        Ok(value) => Some(value),
-                        Err(e) => {
-                            error!("Failed to parse JSON string: {}", e);
-                            None
+        let query_str = format!(r#"
+            USE fabric.{}
+            MATCH p=()-[]->() 
+            WITH p
+            {}  
+            WITH collect(p) AS paths
+            RETURN apoc.convert.toJson(paths) AS json_result
+        "#, shard_name, limit_clause);
+        
+        let query = query(&query_str);
+        
+        match graph.execute(query).await {
+            Ok(mut result) => {
+                if let Ok(Some(row)) = result.next().await {
+                    if let Ok(json_str) = row.get::<String>("json_result") {
+                        match serde_json::from_str(&json_str) {
+                            Ok(value) => Ok(value),
+                            Err(e) => Err(format!("Failed to parse JSON from {}: {}", shard_name, e))
                         }
+                    } else {
+                        Err(format!("Failed to get JSON result from row in {}", shard_name))
                     }
                 } else {
-                    error!("Failed to get JSON result from row");
-                    None
+                    Ok(serde_json::Value::Array(Vec::new()))
                 }
-            } else {
-                
-                Some(serde_json::Value::Array(Vec::new()))
+            },
+            Err(e) => {
+                Err(format!("Failed to execute Neo4j query for {}: {}", shard_name, e))
+            }
+        }
+    }
+    
+    match get_shard_paths(graph, "dbshard1", limit).await {
+        Ok(shard1_value) => {
+            if let Some(paths) = shard1_value.as_array() {
+                path_count += paths.len();
+                all_paths.extend(paths.clone());
+                info!("Retrieved {} paths from shard1", paths.len());
             }
         },
         Err(e) => {
-            error!("Failed to execute Neo4j query: {}", e);
-            None
+            error!("Error retrieving paths from shard1: {}", e);
         }
     }
+    
+    if path_count < max_paths {
+        let remaining = if max_paths == usize::MAX { None } else { Some(max_paths - path_count) };
+        match get_shard_paths(graph, "dbshard2", remaining).await {
+            Ok(shard2_value) => {
+                if let Some(paths) = shard2_value.as_array() {
+                    path_count += paths.len();
+                    all_paths.extend(paths.clone());
+                    info!("Retrieved {} paths from shard2", paths.len());
+                }
+            },
+            Err(e) => {
+                error!("Error retrieving paths from shard2: {}", e);
+            }
+        }
+    }
+    
+    if path_count < max_paths {
+        let remaining = if max_paths == usize::MAX { None } else { Some(max_paths - path_count) };
+        match get_shard_paths(graph, "dbshard3", remaining).await {
+            Ok(shard3_value) => {
+                if let Some(paths) = shard3_value.as_array() {
+                    path_count += paths.len();
+                    all_paths.extend(paths.clone());
+                    info!("Retrieved {} paths from shard3", paths.len());
+                }
+            },
+            Err(e) => {
+                error!("Error retrieving paths from shard3: {}", e);
+            }
+        }
+    }
+
+    if all_paths.is_empty() {
+        info!("No paths were found across all shards");
+    } else {
+        info!("Retrieved a total of {} paths across all shards", all_paths.len());
+    }
+    
+    Some(Value::Array(all_paths))
 }
