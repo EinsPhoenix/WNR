@@ -162,4 +162,3 @@ pub async fn get_nodes_with_color(color: &str, graph: &Graph) -> Option<Value> {
         }
     }
 }
-

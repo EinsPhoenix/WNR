@@ -1,10 +1,28 @@
+/// Provides database sharding operations for a distributed database architecture using Neo4j.
+/// 
+/// This module implements functions for handling data operations across a sharded database system
+/// with three shards:
+/// - Shard 1: Handles base item metadata (id, uuid, color)
+/// - Shard 2: Stores sensor data measurements (temperature, humidity)
+/// - Shard 3: Contains energy consumption data (energy_consume, energy_cost)
+/// 
+/// The module provides functionality to:
+/// - Validate and prepare data items before storage
+/// - Create new nodes across all shards
+/// - Retrieve and combine data from all shards
+/// - Query specific items by ID
+/// - Export graph paths with relationships
+/// - Handle specialized data creation for sensor and energy data
+/// 
+/// The implementation uses a sharding approach to distribute data, with a global ID system
+/// to maintain data consistency across shards. Error handling is implemented throughout with
+/// comprehensive logging.
+
 use neo4rs::{Graph, query};
 use log::{error, info, warn};
 use serde_json::{Value, json};
 use std::collections::HashMap;
-
-
-
+use super::cypher_queries::*;
 
 async fn validate_new_item(item: &Value) -> bool {
     item.get("id").and_then(|v| v.as_f64().or_else(|| v.as_i64().map(|i| i as f64)).or_else(|| v.as_u64().map(|u| u as f64))).is_some()
@@ -18,15 +36,45 @@ async fn validate_new_item(item: &Value) -> bool {
         && item.get("energy_cost").and_then(|v| v.as_f64()).is_some()
 }
 
-
 async fn prepare_all_item_params(item: &Value) -> Option<HashMap<String, String>> {
     let mut params = HashMap::new();
-
 
     params.insert("uuid".to_string(), item.get("uuid")?.as_str()?.to_string());
     params.insert("color".to_string(), item.get("color")?.as_str()?.to_string());
     params.insert("temperature".to_string(), item.get("sensor_data")?.get("temperature")?.as_f64()?.to_string());
     params.insert("humidity".to_string(), item.get("sensor_data")?.get("humidity")?.as_f64()?.to_string());
+    params.insert("timestamp".to_string(), item.get("timestamp")?.as_str()?.to_string());
+    params.insert("energy_consume".to_string(), item.get("energy_consume")?.as_f64()?.to_string());
+    params.insert("energy_cost".to_string(), item.get("energy_cost")?.as_f64()?.to_string());
+
+    Some(params)
+}
+
+async fn validate_new_sensordata(item: &Value) -> bool {
+    item.get("timestamp").and_then(|v| v.as_str()).is_some()
+        && item.get("temperature").and_then(|v| v.as_f64()).is_some()
+        && item.get("humidity").and_then(|v| v.as_f64()).is_some()
+}
+
+async fn prepare_new_sensordata(item: &Value) -> Option<HashMap<String, String>> {
+    let mut params = HashMap::new();
+
+    params.insert("timestamp".to_string(), item.get("timestamp")?.as_str()?.to_string());
+    params.insert("temperature".to_string(), item.get("temperature")?.as_f64()?.to_string());
+    params.insert("humidity".to_string(), item.get("humidity")?.as_f64()?.to_string());
+
+    Some(params)
+}
+
+async fn validate_new_energydata(item: &Value) -> bool {
+    item.get("timestamp").and_then(|v| v.as_str()).is_some()
+        && item.get("energy_consume").and_then(|v| v.as_f64()).is_some()
+        && item.get("energy_cost").and_then(|v| v.as_f64()).is_some()
+}
+
+async fn prepare_new_energydata(item: &Value) -> Option<HashMap<String, String>> {
+    let mut params = HashMap::new();
+
     params.insert("timestamp".to_string(), item.get("timestamp")?.as_str()?.to_string());
     params.insert("energy_consume".to_string(), item.get("energy_consume")?.as_f64()?.to_string());
     params.insert("energy_cost".to_string(), item.get("energy_cost")?.as_f64()?.to_string());
@@ -41,13 +89,8 @@ async fn validate_and_get_data_array(data: &Value) -> Result<&Vec<Value>, String
     }
 }
 
-
 async fn acquire_global_id(graph: &Graph) -> Result<i64, String> {
-    let cypher = "USE fabric.dbshard1
-            MERGE (global_counter:GlobalIdCounter {name: 'global_counter'})
-            ON CREATE SET global_counter.current = 0
-            SET global_counter.current = global_counter.current + 1
-            RETURN global_counter.current AS new_id";
+    let cypher = ACQUIRE_GLOBAL_ID;
     let query = query(cypher);
     match graph.execute(query).await {
         Ok(mut result) => {
@@ -61,13 +104,8 @@ async fn acquire_global_id(graph: &Graph) -> Result<i64, String> {
             }
         }
         Err(e) => Err(format!("Failed to execute Global ID query: {}", e)),
-    }
 }
-
-
-
-
-
+}
 
 pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
     let mut combined_results: HashMap<i64, Value> = HashMap::new();
@@ -76,15 +114,7 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
     
     let mut shard3_data_map: HashMap<i64, Vec<Value>> = HashMap::new();
 
-
-  
-    let shard1_cypher = r#"
-        USE fabric.dbshard1
-        MATCH (id_node:Id)
-        OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
-        OPTIONAL MATCH (id_node)-[:HAS_COLOR]->(color_node:Color)
-        RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
-    "#;
+    let shard1_cypher = GET_ALL_DATA_SHARD1;
     let shard1_query = query(shard1_cypher);
 
     match graph.execute(shard1_query).await {
@@ -100,8 +130,6 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
                 let uuid_val: Option<String> = row.get("uuid").ok();
                 let color_val: Option<String> = row.get("color").ok();
 
-
-            
                 combined_results.insert(id_val, json!({
                     "id": id_val,
                     "uuid": uuid_val,
@@ -117,20 +145,7 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
         }
     }
 
-
-   
-    let shard2_cypher = r#"
-        USE fabric.dbshard2
-        MATCH (id_node:Id)-[:HAS_SENSOR_DATA]->(sensor_data_node:SensorData)
-        OPTIONAL MATCH (sensor_data_node)-[:MEASURES_TEMPERATURE]->(temp_node:Temperature)
-        OPTIONAL MATCH (sensor_data_node)-[:MEASURES_HUMIDITY]->(hum_node:Humidity)
-        RETURN id_node.value AS id, {
-            temperature: temp_node.value,
-            humidity: hum_node.value
-        } AS sensor_reading
-
-        
-    "#;
+    let shard2_cypher = GET_ALL_DATA_SHARD2;
     let shard2_query = query(shard2_cypher);
 
     match graph.execute(shard2_query).await {
@@ -152,7 +167,6 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
                     }
                 };
 
-
                 shard2_data_map.entry(id_val).or_default().push(sensor_reading);
             }
         }
@@ -160,28 +174,10 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
             let error_msg = format!("Failed to execute Shard 2 query in get_all_data: {}", e);
             error!("{}", error_msg);
 
-
         }
     }
 
-
- 
-    let shard3_cypher = r#"
-        USE fabric.dbshard3
-        MATCH (id_node:Id) 
-       
-        OPTIONAL MATCH (id_node)-[:RECORDED_AT]->(time_node:Timestamp)
-        OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
-        OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
-
-        RETURN id_node.value AS id, {
-            timestamp: time_node.value,
-            energy_consume: econsume_node.value,
-            energy_cost: ecost_node.value
-        } AS energy_reading
-
-        ORDER BY id_node.value, time_node.value 
-    "#;
+    let shard3_cypher = GET_ALL_DATA_SHARD3;
     let shard3_query = query(shard3_cypher);
 
     match graph.execute(shard3_query).await {
@@ -210,28 +206,22 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
             let error_msg = format!("Failed to execute Shard 3 query in get_all_data: {}", e);
             error!("{}", error_msg);
 
-
         }
     }
-
 
     for (id, base_data) in combined_results.iter_mut() {
         if let Some(obj) = base_data.as_object_mut() {
 
             let mut merged_sensor_data: Vec<Value> = Vec::new();
 
-
             let s2_readings = shard2_data_map.get(id).cloned().unwrap_or_default();
             let s3_readings = shard3_data_map.get(id).cloned().unwrap_or_default();
 
-
-         
             let num_readings = s2_readings.len().max(s3_readings.len());
 
             for i in 0..num_readings {
                 let mut combined_reading = serde_json::Map::new();
 
-               
                 if let Some(s2_val) = s2_readings.get(i) {
                     if let Some(s2_obj) = s2_val.as_object() {
                         if let Some(temp) = s2_obj.get("temperature") { combined_reading.insert("temperature".to_string(), temp.clone()); }
@@ -239,7 +229,6 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
                     }
                 }
 
-           
                 if let Some(s3_val) = s3_readings.get(i) {
                      if let Some(s3_obj) = s3_val.as_object() {
                         if let Some(ts) = s3_obj.get("timestamp") { combined_reading.insert("timestamp".to_string(), ts.clone()); }
@@ -253,8 +242,6 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
                 }
             }
 
-
-         
             let valid_readings: Vec<Value> = merged_sensor_data.into_iter()
                 .filter(|reading| !reading.is_null() && reading.is_object() && !reading.as_object().unwrap().is_empty())
                 .collect();
@@ -263,28 +250,15 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
 
     }
 
-
     let final_data: Vec<Value> = combined_results.into_values().collect();
     info!("Retrieved and combined data from 3 shards for {} entries.", final_data.len());
     Ok(json!(final_data))
 }
 
-
-
-
 pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
     let params = HashMap::from([("target_id".to_string(), id)]);
 
-
-   
-    let shard1_cypher = r#"
-        USE fabric.dbshard1
-        MATCH (id_node:Id {value: $target_id})
-        OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
-        OPTIONAL MATCH (id_node)-[:HAS_COLOR]->(color_node:Color)
-        RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
-        LIMIT 1
-    "#;
+    let shard1_cypher = GET_DATA_BY_ID_SHARD1;
 
     let shard1_query = query(shard1_cypher).params(params.clone());
     info!("Executing Shard 1 query for ID {}", id);
@@ -307,22 +281,7 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
         Err(e) => return Err(format!("Failed to execute Shard 1 query for ID {}: {}", id, e)),
     };
 
-
-    let shard2_cypher = r#"
-        USE fabric.dbshard2
-        MATCH (id_node_s2:Id {value: $target_id})
-        OPTIONAL MATCH (id_node_s2)-[:HAS_SENSOR_DATA]->(sensor_data_node:SensorData)
-        OPTIONAL MATCH (sensor_data_node)-[:MEASURES_TEMPERATURE]->(temp_node:Temperature)
-        OPTIONAL MATCH (sensor_data_node)-[:MEASURES_HUMIDITY]->(hum_node:Humidity)
-       
-        WITH sensor_data_node, temp_node, hum_node
-        WHERE sensor_data_node IS NOT NULL
-        RETURN {
-            temperature: temp_node.value,
-            humidity: hum_node.value
-        } AS sensor_reading
-        
-    "#;
+    let shard2_cypher = GET_DATA_BY_ID_SHARD2;
     let shard2_query = query(shard2_cypher).params(params.clone()); 
     info!("Executing Shard 2 query for ID {}", id);
     let mut shard2_readings_list: Vec<Value> = Vec::new();
@@ -351,24 +310,7 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
         }
     };
 
-
- 
-    let shard3_cypher = r#"
-        USE fabric.dbshard3
-        MATCH (id_node_s3:Id {value: $target_id})
-        OPTIONAL MATCH (id_node_s3)-[:RECORDED_AT]->(time_node:Timestamp)
-        OPTIONAL MATCH (id_node_s3)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
-        OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
-
-        WITH time_node, econsume_node, ecost_node 
-        WHERE time_node IS NOT NULL OR econsume_node IS NOT NULL 
-        RETURN {
-            timestamp: time_node.value,
-            energy_consume: econsume_node.value,
-            energy_cost: ecost_node.value
-        } AS energy_reading
-        ORDER BY time_node.value 
-    "#;
+    let shard3_cypher = GET_DATA_BY_ID_SHARD3;
 
     let shard3_query = query(shard3_cypher).params(params); 
     info!("Executing Shard 3 query for ID {}", id);
@@ -398,14 +340,11 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
         }
     };
 
-
-
     let mut merged_sensor_data: Vec<Value> = Vec::new();
     let num_readings = shard2_readings_list.len().max(shard3_readings_list.len());
 
     for i in 0..num_readings {
         let mut combined_reading = serde_json::Map::new();
-
 
         if let Some(s2_val) = shard2_readings_list.get(i) {
             if let Some(s2_obj) = s2_val.as_object() {
@@ -431,7 +370,6 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
         .filter(|reading| !reading.is_null() && reading.is_object() && !reading.as_object().unwrap().is_empty())
         .collect();
 
-
     let combined_data = json!({
         "id": id_val,
         "uuid": uuid_val,
@@ -441,7 +379,6 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
     info!("Successfully retrieved and combined data from 3 shards for ID {}: {:?}", id, combined_data);
     Ok(combined_data)
 }
-
 
 pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, String> {
 
@@ -455,7 +392,6 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
         return Ok(0);
     }
 
-
     for (index, item) in data_array.iter().enumerate() {
         if !validate_new_item(item).await {
             let error_msg = format!("Invalid item structure at index {}: {:?}", index, item);
@@ -466,7 +402,6 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
 
     let mut processed_count = 0;
     let mut errors = Vec::new();
-
 
     for (index, item) in data_array.iter().enumerate() {
 
@@ -493,7 +428,6 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
         let mut params_with_id = params; 
         params_with_id.insert("new_id".to_string(), new_id.to_string());
 
-     
         let graph_ref1 = graph.clone(); 
         let graph_ref2 = graph.clone();
         let graph_ref3 = graph.clone();
@@ -501,12 +435,10 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
         let params_ref2 = params_with_id.clone();
         let params_ref3 = params_with_id.clone();
 
-
         let shard1_handle = tokio::spawn(async move { execute_shard1_query(&graph_ref1, &params_ref1).await });
         let shard2_handle = tokio::spawn(async move { execute_shard2_query(&graph_ref2, &params_ref2).await });
         let shard3_handle = tokio::spawn(async move { execute_shard3_query(&graph_ref3, &params_ref3).await });
 
-        
         let (res1, res2, res3) = tokio::join!(shard1_handle, shard2_handle, shard3_handle);
 
         let shard1_ok = match res1 {
@@ -535,7 +467,6 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
 
     }
 
-
     if errors.is_empty() {
         info!(
             "Successfully processed {} out of {} items across both shards.",
@@ -554,57 +485,12 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
         );
         error!("{}", combined_error);
 
-
         Ok(processed_count)
     }
 }
 
-
-
-async fn execute_shard3_query(graph: &Graph, params: &HashMap<String, String>) -> Result<(), String> {
-    let cypher = r#"
-        USE fabric.dbshard3 
-
-        MERGE (id_node:Id {value: toInteger($new_id)})
-
-
-        CREATE (time_node:Timestamp {value: $timestamp})
-        CREATE (econsume_node:EnergyConsume {value: toFloat($energy_consume)})
-        CREATE (ecost_node:EnergyCost {value: toFloat($energy_cost)})
-
-        MERGE (id_node)-[:RECORDED_AT]->(time_node)
-        MERGE (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node)
-        MERGE (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node)
-
-        RETURN id_node.value AS processed_id
-    "#;
-    let query = query(cypher).params(params.clone());
-     match graph.execute(query).await {
-        Ok(mut result) => {
-            match result.next().await {
-                Ok(Some(_row)) => Ok(()),
-                Ok(None) => Err("Shard 3 query executed but returned no confirmation row.".to_string()),
-                Err(e) => Err(format!("Failed to process result row for Shard 3 query: {}", e)),
-            }
-        }
-        Err(e) => Err(format!("Failed to execute Shard 3 query: {}", e)),
-    }
-}
-
-
 async fn execute_shard1_query(graph: &Graph, params: &HashMap<String, String>) -> Result<(), String> {
-    let cypher = r#"
-        USE fabric.dbshard1
-
-        CREATE (id_node:Id {value: toInteger($new_id)})
-        CREATE (uuid_node:Uuid {value: $uuid})
-
-        MERGE (color_node:Color {value: $color})
-
-        MERGE (id_node)-[:HAS_UUID]->(uuid_node)
-        MERGE (id_node)-[:HAS_COLOR]->(color_node)
-        RETURN id_node.value AS processed_id
-    "#;
+    let cypher = CREATE_NODES_SHARD1;
     let query = query(cypher).params(params.clone());
     match graph.execute(query).await {
         Ok(mut result) => {
@@ -618,25 +504,8 @@ async fn execute_shard1_query(graph: &Graph, params: &HashMap<String, String>) -
     }
 }
 
-
 async fn execute_shard2_query(graph: &Graph, params: &HashMap<String, String>) -> Result<(), String> {
-    let cypher = r#"
-        USE fabric.dbshard2
-
-        MERGE (id_node:Id {value: toInteger($new_id)})
-
-        CREATE (sensor_data_node:SensorData) 
-
-        MERGE (temp_node:Temperature {value: toFloat($temperature)})
-        MERGE (hum_node:Humidity {value: toFloat($humidity)})
-
-        MERGE (id_node)-[:HAS_SENSOR_DATA]->(sensor_data_node)
-        MERGE (sensor_data_node)-[:MEASURES_TEMPERATURE]->(temp_node)
-        MERGE (sensor_data_node)-[:MEASURES_HUMIDITY]->(hum_node)
-
-
-        RETURN id_node.value AS processed_id
-    "#;
+    let cypher = CREATE_NODES_SHARD2;
     let query = query(cypher).params(params.clone());
      match graph.execute(query).await {
         Ok(mut result) => {
@@ -650,16 +519,27 @@ async fn execute_shard2_query(graph: &Graph, params: &HashMap<String, String>) -
     }
 }
 
-
+async fn execute_shard3_query(graph: &Graph, params: &HashMap<String, String>) -> Result<(), String> {
+    let cypher = CREATE_NODES_SHARD3;
+    let query = query(cypher).params(params.clone());
+     match graph.execute(query).await {
+        Ok(mut result) => {
+            match result.next().await {
+                Ok(Some(_row)) => Ok(()),
+                Ok(None) => Err("Shard 3 query executed but returned no confirmation row.".to_string()),
+                Err(e) => Err(format!("Failed to process result row for Shard 3 query: {}", e)),
+            }
+        }
+        Err(e) => Err(format!("Failed to execute Shard 3 query: {}", e)),
+    }
+}
 
 pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) -> Option<Value> {
    
     let mut path_count = 0;
     let max_paths = limit.unwrap_or(usize::MAX);
     
- 
     let mut all_paths = Vec::new();
-    
     
     async fn get_shard_paths(graph: &Graph, shard_name: &str, remaining_limit: Option<usize>) -> Result<Value, String> {
       
@@ -700,7 +580,6 @@ pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) 
         }
     }
     
-
     match get_shard_paths(graph, "dbshard1", limit).await {
         Ok(shard1_value) => {
             if let Some(paths) = shard1_value.as_array() {
@@ -714,7 +593,6 @@ pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) 
         }
     }
     
- 
     if path_count < max_paths {
         let remaining = if max_paths == usize::MAX { None } else { Some(max_paths - path_count) };
         match get_shard_paths(graph, "dbshard2", remaining).await {
@@ -731,7 +609,6 @@ pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) 
         }
     }
     
-  
     if path_count < max_paths {
         let remaining = if max_paths == usize::MAX { None } else { Some(max_paths - path_count) };
         match get_shard_paths(graph, "dbshard3", remaining).await {
@@ -755,4 +632,204 @@ pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) 
     }
     
     Some(Value::Array(all_paths))
+}
+
+pub async fn create_new_sensor_nodes(data: &Value, graph: &Graph) -> Result<usize, String> {
+    
+    let data_array = match validate_and_get_data_array(data).await {
+        Ok(arr) => arr,
+        Err(e) => return Err(format!("Input validation failed (expected array): {}", e)),
+    };
+
+    if data_array.is_empty() {
+        info!("Received empty sensor data array. No nodes will be created.");
+        return Ok(0);
+    }
+
+    for (index, item) in data_array.iter().enumerate() {
+        if !validate_new_sensordata(item).await {
+            let error_msg = format!("Invalid sensor data structure at index {}: Expected timestamp(string), temperature(float), humidity(float). Got: {:?}", index, item);
+            error!("{}", error_msg);
+            
+            return Err(error_msg);
+        }
+    }
+
+    let mut processed_count = 0;
+    let mut errors = Vec::new();
+
+    for (index, item) in data_array.iter().enumerate() {
+        
+        let params = match prepare_new_sensordata(item).await {
+            Some(p) => p,
+            None => {
+               
+                let error_msg = format!("Failed to extract parameters for sensor data at index {}: {:?}", index, item);
+                error!("{}", error_msg);
+                errors.push(error_msg);
+                continue; 
+            }
+        };
+
+        let cypher = CREATE_SENSOR_NODES_SHARD2;
+        let query = query(cypher).params(params.clone());
+
+        let timestamp_str = params.get("timestamp").cloned().unwrap_or_else(|| "unknown".to_string());
+
+        match graph.execute(query).await {
+            Ok(mut result) => {
+               
+                match result.next().await {
+                    Ok(Some(row)) => {
+                        if row.get::<String>("timestamp").is_ok() {
+                             info!("Successfully created sensor node with timestamp {}", timestamp_str);
+                             processed_count += 1;
+                        } else {
+                             let error_msg = format!("Query executed for sensor data with timestamp {}, but failed to get confirmation timestamp from result.", timestamp_str);
+                             error!("{}", error_msg);
+                             errors.push(error_msg);
+                        }
+                    }
+                    Ok(None) => {
+                        
+                        let error_msg = format!("Query executed for sensor data with timestamp {}, but returned no confirmation row.", timestamp_str);
+                        error!("{}", error_msg);
+                        errors.push(error_msg);
+                    }
+                    Err(e) => {
+                        let error_msg = format!("Failed to process result row for sensor data with timestamp {}: {}", timestamp_str, e);
+                        error!("{}", error_msg);
+                        errors.push(error_msg);
+                    }
+                }
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to execute query for sensor data with timestamp {}: {}", timestamp_str, e);
+                error!("{}", error_msg);
+                errors.push(error_msg);
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        info!(
+            "Successfully processed all {} sensor data entries.",
+            processed_count
+        );
+    } else {
+        error!( 
+            "Processed {} out of {} sensor data entries. Encountered {} errors: {}",
+            processed_count,
+            data_array.len(),
+            errors.len(),
+            errors.join("; ") 
+        );
+    }
+
+    if !errors.is_empty() {
+        
+         Ok(processed_count) 
+    } else {
+        Ok(processed_count)
+    }
+}
+
+pub async fn create_new_energy_data(data: &Value, graph: &Graph) -> Result<usize, String> {
+    
+    let data_array = match validate_and_get_data_array(data).await {
+        Ok(arr) => arr,
+        Err(e) => return Err(format!("Input validation failed (expected array): {}", e)),
+    };
+
+    if data_array.is_empty() {
+        info!("Received empty energy data array. No nodes will be created.");
+        return Ok(0);
+    }
+
+    for (index, item) in data_array.iter().enumerate() {
+        if !validate_new_energydata(item).await {
+            let error_msg = format!("Invalid energy data structure at index {}: Expected timestamp(string), energy_consume(float), energy_cost(float). Got: {:?}", index, item);
+            error!("{}", error_msg);
+            
+            return Err(error_msg);
+        }
+    }
+
+    let mut processed_count = 0;
+    let mut errors = Vec::new();
+
+    for (index, item) in data_array.iter().enumerate() {
+        
+        let params = match prepare_new_energydata(item).await {
+            Some(p) => p,
+            None => {
+                
+                let error_msg = format!("Failed to extract parameters for energy data at index {}: {:?}", index, item);
+                error!("{}", error_msg);
+                errors.push(error_msg);
+                continue; 
+            }
+        };
+
+        let cypher = CREATE_ENERGY_NODES_SHARD3;
+        let query = query(cypher).params(params.clone()); 
+
+        let timestamp_str = params.get("timestamp").cloned().unwrap_or_else(|| "unknown".to_string());
+
+        match graph.execute(query).await {
+            Ok(mut result) => {
+                
+                match result.next().await {
+                    Ok(Some(row)) => {
+                        if row.get::<String>("timestamp").is_ok() {
+                             info!("Successfully created energy node with timestamp {}", timestamp_str);
+                             processed_count += 1;
+                        } else {
+                             let error_msg = format!("Query executed for energy data with timestamp {}, but failed to get confirmation timestamp from result.", timestamp_str);
+                             error!("{}", error_msg);
+                             errors.push(error_msg);
+                        }
+                    }
+                    Ok(None) => {
+                        
+                        let error_msg = format!("Query executed for energy data with timestamp {}, but returned no confirmation row.", timestamp_str);
+                        error!("{}", error_msg);
+                        errors.push(error_msg);
+                    }
+                    Err(e) => {
+                        let error_msg = format!("Failed to process result row for energy data with timestamp {}: {}", timestamp_str, e);
+                        error!("{}", error_msg);
+                        errors.push(error_msg);
+                    }
+                }
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to execute query for energy data with timestamp {}: {}", timestamp_str, e);
+                error!("{}", error_msg);
+                errors.push(error_msg);
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        info!(
+            "Successfully processed all {} energy data entries.",
+            processed_count
+        );
+    } else {
+        error!( 
+            "Processed {} out of {} energy data entries. Encountered {} errors: {}",
+            processed_count,
+            data_array.len(),
+            errors.len(),
+            errors.join("; ") 
+        );
+    }
+
+    if !errors.is_empty() {
+         
+         Ok(processed_count) 
+    } else {
+        Ok(processed_count)
+    }
 }

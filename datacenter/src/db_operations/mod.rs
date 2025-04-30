@@ -4,6 +4,7 @@ pub mod bigfiles;
 pub mod relationshipexport;
 pub mod specificoperations;
 pub mod sharding;
+pub mod cypher_queries;
 
 
 
