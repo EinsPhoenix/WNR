@@ -7,7 +7,7 @@
 <style>
     .loader-wrapper {
         height: 100vh;
-        background-color: var(--background-color);
+        background-color: rgb(26, 26, 26);
     }
 
     .loader-image {

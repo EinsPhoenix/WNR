@@ -33,16 +33,16 @@
       </div>
       <div class="group2">
         <div class="item item1">
-          [12:03:58] Gegenstand #1450 produziert 
+          [12:03:58] Item #1450 produced 
         </div>
         <div class="item item2">
-          [12:03:57] Gegenstand #1449 produziert  
+          [12:03:57] Item #1449 produced  
         </div>
         <div class="item item3">
-          [12:03:56] Gegenstand #1448 produziert  
+          [12:03:56] Item #1448 produced  
         </div>
         <div class="item item4">
-          [12:03:55] Gegenstand #1447 produziert  
+          [12:03:55] Item #1447 produced  
         </div>
       </div>
       <div class="group3">
@@ -68,10 +68,10 @@
       <div class="group4">
         <div class="user">
           <div class="user-icon"> 
-            TS
+            MM
           </div>
           <div class="user-name">
-            Tobias Stark
+            Max Mustermann
           </div>
         </div>
       </div>
@@ -90,6 +90,10 @@
       margin-top: 0.5rem;
       border-top: solid 2px;
       border-bottom: solid 2px;
+    }
+
+    .item:hover {
+      background-color: rgb(194, 194, 194);
     }
   
     .wnrlogo {
@@ -158,6 +162,10 @@
       border-bottom: solid 2px;
       margin-top: 0.5rem;
       background-color: var(--pastel-white-color);
+    }
+
+    .nav-item:hover {
+      background-color: rgb(194, 194, 194);
     }
 
     .content {

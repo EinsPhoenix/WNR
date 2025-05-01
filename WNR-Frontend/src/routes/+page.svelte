@@ -1,9 +1,65 @@
+<script lang="ts">
+    import { onMount } from "svelte";
+    import Chart from 'chart.js/auto';
+    import type { ChartData, ChartOptions } from 'chart.js';
+
+
+    let chart: Chart<'line'>;
+    let energycost: HTMLCanvasElement;
+
+    const data: ChartData<'line'> = {
+        labels: ['01.05.', '02.05.', '03.05.', '04.05.', '05.05.', '06.05.', '07.05.'],
+        datasets: [
+        {
+            data: [12, 19, 3, 5, 2, 3, 9],
+            backgroundColor: [
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            ],
+            borderColor: [
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            'rgba(255, 198, 255, 1)',
+            ],
+            borderWidth: 1
+        }
+        ]
+    };
+
+    const options: ChartOptions<'line'> = {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    };
+
+    onMount(() => {
+        chart = new Chart(energycost, {
+        type: 'line',
+        data,
+        options
+        });
+        return () => chart.destroy();
+    });
+</script>
+
 <div class="wrapper">
     <div class="box box1">
 
         <div class="information-wrapper">
             <div class="energy-cost">
-                Energie Kosten
+                Energy costs
                 <div class="cost-number">
                     254 €
                 </div>
@@ -15,7 +71,7 @@
             <div class="border"></div>
 
             <div class="speed">
-                Geschwindigkeit:
+                Speed:
                 <div class="speed-number">
                     52/h
                 </div>
@@ -27,7 +83,7 @@
             <div class="border"></div>
 
             <div class="fail">
-                Fehlschläge:
+                Failures:
                 <div class="fail-number">
                     0
                 </div>
@@ -40,26 +96,26 @@
 
     <div class="box box2">
         <div class="box-title">
-            Bauteilinformationen
+            Component information
         </div>
 
         <div class="box2-wrapper">
             <div class="build">
-                Fertigung:
+                Manufacturing:
                 <div class="build-number">
                     24.04.2025
                 </div>
             </div>
 
             <div class="color">
-                Farbe:
+                Color:
                 <div class="color-number">
-                    Blau
+                    Blue
                 </div>
             </div>
 
             <div class="index">
-                Bauteilnummer:
+                Component number:
                 <div class="index-number">
                     X1234
                 </div>
@@ -68,17 +124,23 @@
     </div>
 
     <div class="box box3">
-        Box 3
+        <div class="box-title">
+            Environmental conditions
+        </div>
     </div>
 
     <div class="box box4">
-        Box 4
+        <div class="box-title">
+            Components per day
+        </div>
     </div>
 
     <div class="box box5">
         <div class="box-title">
-            Energiekosten
+            Energy costs
         </div>
+
+        <canvas bind:this={energycost}></canvas>
     </div>
 </div>
 
@@ -211,10 +273,15 @@
         text-align: center;
         background-color: var(--pastel-white-color);
         border-radius: 8px;
+        transition: transform 0.3s ease-in-out;
+    }
+
+    .box:hover {
+        transform: scale(1.02);
     }
 
     .box1 {
-        grid-row: 2 / span 3;
+        grid-row: 2 / span 2;
         grid-column: 2 / span 20;
 
         padding: 0;
@@ -223,7 +290,7 @@
     }
 
     .box2 {
-        grid-row: 5 / span 7;
+        grid-row: 4 / span 5;
         grid-column: 2 / span 12;
 
         background-color: rgb(26, 26, 26);
@@ -231,18 +298,27 @@
     }
 
     .box3 {
-        grid-row: 12 / span 10;
+        grid-row: 9 / span 8;
         grid-column: 2 / span 12;
+
+        background-color: rgb(26, 26, 26);
+        color: var(--pastel-pink-color);
     }
 
     .box4 {
-        grid-row: 11 / span 11;
+        grid-row: 10 / span 7;
         grid-column: 14 / span 8;
+
+        background-color: rgb(26, 26, 26);
+        color: var(--pastel-pink-color);
     }
 
     .box5 {
-        grid-row: 5 / span 6;
+        grid-row: 4 / span 6;
         grid-column: 14 / span 8;
+
+        background-color: rgb(26, 26, 26);
+        color: var(--pastel-pink-color);
     }
 
 
