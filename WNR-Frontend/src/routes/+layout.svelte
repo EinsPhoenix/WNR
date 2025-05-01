@@ -20,7 +20,7 @@
 
 <Navbar />
 <slot />
-<Footer />
+<!-- <Footer /> -->
 
 <style>
     :global(body) {

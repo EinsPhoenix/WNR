@@ -22,6 +22,7 @@
         height: 500px;
         width: 500px;
         animation: rotate 1.5s ease-in-out infinite;
+        margin-left: 400px;
     }
 
     @keyframes rotate {
@@ -30,6 +31,44 @@
         }
         to {
             transform: rotate(360deg);
+        }
+    }
+
+
+    @media (max-width: 768px) {
+        .loader-wrapper {
+            overflow: hidden;
+        }
+
+        .loader-image {
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        img {
+            height: 200px;
+            width: 200px;
+        }
+    }
+
+    @media (max-width: 1100px) {
+        .loader-wrapper {
+            overflow: hidden;
+        }
+
+        .loader-image {
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        img {
+            height: 500px;
+            width: 500px;
+            margin-left: 400px;
         }
     }
 </style>

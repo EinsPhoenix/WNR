@@ -1,116 +1,283 @@
 <div class="wrapper">
     <div class="box box1">
-        <h1 class="box-title">Manufactured at:</h1>
-        <p class="box-text">
-            "Manufactured at"
-            indicates the exact time a product was made.
-            It shows when the manufacturing process was completed
-        </p>
-        <h1 class="box-timestamp">14:23</h1>
+
+        <div class="information-wrapper">
+            <div class="energy-cost">
+                Energie Kosten
+                <div class="cost-number">
+                    254 €
+                </div>
+                <div class="cost-percentage">
+                    -33%
+                </div>
+            </div>
+
+            <div class="border"></div>
+
+            <div class="speed">
+                Geschwindigkeit:
+                <div class="speed-number">
+                    52/h
+                </div>
+                <div class="speed-percentage">
+                    +0%
+                </div>
+            </div>
+
+            <div class="border"></div>
+
+            <div class="fail">
+                Fehlschläge:
+                <div class="fail-number">
+                    0
+                </div>
+                <div class="fail-percentage">
+                    -12%
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="box">
-        <h1 class="box-title">Manufactured at:</h1>
+
+    <div class="box box2">
+        <div class="box-title">
+            Bauteilinformationen
+        </div>
+
+        <div class="box2-wrapper">
+            <div class="build">
+                Fertigung:
+                <div class="build-number">
+                    24.04.2025
+                </div>
+            </div>
+
+            <div class="color">
+                Farbe:
+                <div class="color-number">
+                    Blau
+                </div>
+            </div>
+
+            <div class="index">
+                Bauteilnummer:
+                <div class="index-number">
+                    X1234
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="box">
-        <h1 class="box-title">Manufactured at:</h1>
+
+    <div class="box box3">
+        Box 3
     </div>
-    <div class="box">
-        <h1 class="box-title">Manufactured at:</h1>
+
+    <div class="box box4">
+        Box 4
     </div>
-    <div class="box">
-        <h1 class="box-title">Manufactured at:</h1>
-    </div>
-    <div class="box">
-        <h1 class="box-title">Manufactured at:</h1>
+
+    <div class="box box5">
+        <div class="box-title">
+            Energiekosten
+        </div>
     </div>
 </div>
 
 <style>
-    .wrapper {
-        height: 100%;
+    .build {
         display: flex;
-        flex-wrap: wrap;
-        gap: 40px;
-        align-content: flex-start;
-        margin: 40px;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
     }
 
-    .box {
+    .build-number {
+        padding: 0.5rem;
+        width: 150px;
+    }
+
+    .color {
         display: flex;
-        background-color: var(--primary-color);
-        height: 26rem;
-        min-height: 25rem;
-        flex: 0 0 calc(33.333% - 30px);
-        box-sizing: border-box;
-        -webkit-box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.7); 
-        box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.7);
-        border-radius: 7px;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .color-number {
+        background-color: blue;
+        padding: 0.5rem;
+        border-radius: 8px;
+        width: 150px;
+        font-weight: bold;
+    }
+
+    .index {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .index-number {
+        padding: 0.5rem;
+        width: 150px;
+    }
+
+    .box2-wrapper {
+        display: flex;
         flex-direction: column;
+        align-items: start;
+        height: 80%;
+        justify-content: space-evenly;
+        font-size: 20px;
     }
 
     .box-title {
-        background-color: var(--background-color);
-        border-top-right-radius: 7px;
-        border-top-left-radius: 7px;
-        height: 80px;
-        color: #fcafbc;
-        font-size: 3rem;
-        text-align: start;
-        padding-left: 2rem;
-        font-weight: bolder;
-        flex-shrink: 0;
-        text-shadow: 1px 1px 1px #000;
-    }
-
-    .box-text {
-        color: black;
-        flex-shrink: 0;
-        padding: 1rem;
-        font-size: 1.3rem;
-    }
-
-    .box-timestamp {
-        color: black;
-        display: flex;
-        align-items: flex-end;
-        flex-grow: 1;
-        padding: 1rem;
+        font-weight: bold;
+        font-size: 35px;
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 7rem;
-        font-weight: bolder;
+        justify-content: start;
     }
 
-    @media (max-width: 1560px) {
-        .box-title {
-            font-size: 2.5rem;
+    .border {
+        border: solid 1px var(--pastel-pink-color);
+        height: 60%;
+    }
+
+    .energy-cost {
+        display: flex;
+        flex-direction: column;
+        text-align: start;
+    }
+
+    .cost-number {
+        font-weight: bold;
+        font-size: 30px;
+    }
+
+    .cost-percentage {
+        color: var(--pastel-green-color);
+    }
+
+    .speed {
+        display: flex;
+        flex-direction: column;
+        text-align: start;
+    }
+
+    .speed-number {
+        font-weight: bold;
+        font-size: 30px;
+    }
+
+    .speed-percentage {
+        color: var(--pastel-green-color);
+    }
+
+    .fail {
+        display: flex;
+        flex-direction: column;
+        text-align: start;
+    }
+
+    .fail-number {
+        font-weight: bold;
+        font-size: 30px;
+    }
+
+    .fail-percentage {
+        color: var(--pastel-red-color);
+    }
+
+    .information-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: space-evenly;
+        height: 100%;
+    }
+
+    .wrapper {
+        flex: 1;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(22, 1fr);
+        grid-template-rows: repeat(22, 1fr);
+        margin-left: var(--navbar-width);
+    }
+
+    .box {
+        border: solid 2px;
+        padding: 20px;
+        text-align: center;
+        background-color: var(--pastel-white-color);
+        border-radius: 8px;
+    }
+
+    .box1 {
+        grid-row: 2 / span 3;
+        grid-column: 2 / span 20;
+
+        padding: 0;
+        background-color: rgb(26, 26, 26);
+        color: var(--pastel-pink-color);
+    }
+
+    .box2 {
+        grid-row: 5 / span 7;
+        grid-column: 2 / span 12;
+
+        background-color: rgb(26, 26, 26);
+        color: var(--pastel-pink-color);
+    }
+
+    .box3 {
+        grid-row: 12 / span 10;
+        grid-column: 2 / span 12;
+    }
+
+    .box4 {
+        grid-row: 11 / span 11;
+        grid-column: 14 / span 8;
+    }
+
+    .box5 {
+        grid-row: 5 / span 6;
+        grid-column: 14 / span 8;
+    }
+
+
+    @media (max-width: 768px) {
+        .wrapper {
+            margin-left: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
-    }
 
-    @media (max-width: 1350px) {
-        .box-title {
-            font-size: 2rem;
-        }
-    }
-
-    @media (max-width: 1320px) {
         .box {
-            flex: 0 0 calc(50% - 20px);
+            min-width: 0;
+            min-height: 400px;
+            margin: 20px;
         }
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 1100px) {
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
         .box {
-            flex: 0 0 100%;
+            min-width: 0;
+            min-height: 400px;
+            margin: 20px;
         }
+    }
 
-        .box-text {
-            font-size: 1rem;
-        }
-
-        .box-timestamp {
-            font-size: 6rem;
+    @media (max-width: 1200px) {
+        .box-title {
+            font-size: 30px;
         }
     }
 </style>
