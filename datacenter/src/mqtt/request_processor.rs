@@ -5,11 +5,11 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::db;
-use crate::db_operations::crud::*;
 use crate::db_operations::specificoperations::*;
 use crate::db_operations::relationshipexport::*;
 
 use crate::db_operations::sharding::*;
+use crate::db_operations::crud::*;
 
 use super::publisher::{publish_result, publish_error_response}; 
 
@@ -26,7 +26,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         }
     };
 
-    // Extract client ID 
+    
     let requesting_client_id = match json_value.get("client_id").and_then(Value::as_str) {
         Some(id) => id.to_string(), 
         None => {
@@ -36,10 +36,10 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         }
     };
 
-    // Get database connections
+    
     let write_conn = db_handler.get_main_db().await;
 
-    // Process based on the "request" field
+    
     match json_value.get("request").and_then(Value::as_str) {
         Some("uuid") => {
             info!("Processing UUID request for client: {}", requesting_client_id);
@@ -190,7 +190,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             }
         },
 
-        Some("energy_cost") => {
+        Some("id_energy_cost") => {
             info!("Processing 'energy_cost' data for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/energy_cost", requesting_client_id);
             if let Some(cost) = json_value.get("data").and_then(Value::as_f64) {
@@ -209,7 +209,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             }
         },
 
-        Some("energy_consume") => {
+        Some("id_energy_consume") => {
             info!("Processing 'energy_consume' data for Client-ID: {}", requesting_client_id);
              let response_topic = format!("rust/response/{}/energy_consume", requesting_client_id);
             if let Some(consume) = json_value.get("data").and_then(Value::as_f64) {
@@ -228,40 +228,70 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             }
         },
 
-        Some("newest") => {
-            info!("Processing 'newest' request for Client-ID: {}", requesting_client_id);
-            let response_topic = format!("rust/response/{}/newest", requesting_client_id);
-            match get_newest_uuid(&write_conn).await {
-                Some(nodes) => { 
+        Some("newestids") => {
+            info!("Processing 'newestids' request for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/newestids", requesting_client_id);
+            match get_newest_ids(&write_conn).await {
+                Ok(nodes) => { 
                     publish_result(client, &response_topic, &nodes).await?;
                 },
-                None => { 
-                    error!("Failed to get newest nodes for Client-ID: {}", requesting_client_id);
-                    return publish_error_response(client, &requesting_client_id, "newest", "Failed to get newest nodes").await;
+                Err(e) => { 
+                    error!("Failed to get newest IDs for Client-ID: {}: {}", requesting_client_id, e);
+                    return publish_error_response(client, &requesting_client_id, "newestids", &format!("Failed to get newest IDs: {}", e)).await;
+                }
+            }
+        },
+        
+        Some("newestsensordata") => {
+            info!("Processing 'newestsensordata' request for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/newestsensordata", requesting_client_id);
+            match get_newest_sensordata(&write_conn).await {
+                Ok(nodes) => { 
+                    publish_result(client, &response_topic, &nodes).await?;
+                },
+                Err(e) => { 
+                    error!("Failed to get newest sensor data for Client-ID: {}: {}", requesting_client_id, e);
+                    return publish_error_response(client, &requesting_client_id, "newestsensordata", &format!("Failed to get newest sensor data: {}", e)).await;
+                }
+            }
+        },
+        
+        Some("newestenergydata") => {
+            info!("Processing 'newestenergydata' request for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/newestenergydata", requesting_client_id);
+            match get_newest_energydata(&write_conn).await {
+                Ok(nodes) => { 
+                    publish_result(client, &response_topic, &nodes).await?;
+                },
+                Err(e) => { 
+                    error!("Failed to get newest energy data for Client-ID: {}: {}", requesting_client_id, e);
+                    return publish_error_response(client, &requesting_client_id, "newestenergydata", &format!("Failed to get newest energy data: {}", e)).await;
                 }
             }
         },
 
-        Some("add") => {
-            info!("Processing 'add' data for Client-ID: {}", requesting_client_id);
-            let response_topic = format!("rust/response/{}/add", requesting_client_id);
+        Some("addrobotdata") => {
+            info!("Processing 'add' robotdata for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/add/robotdata", requesting_client_id);
             if let Some(add_data) = json_value.get("data") { 
-                match create_new_relation(add_data, &write_conn).await {
-                    Ok(true) => {
-                        let response = json!({
-                            "status": "success",
-                            "message": "Nodes/relations successfully added/updated"
-                        });
-                        publish_result(client, &response_topic, &response).await?;
-                    },
-                    Ok(false) => {
-                       
-                        info!("No new nodes created or relations added (data might already exist or update occurred). Client-ID: {}", requesting_client_id);
-                        let response = json!({
-                            "status": "no_change", 
-                            "message": "No new nodes or relations were created (data might already exist or represent an update)"
-                        });
-                        publish_result(client, &response_topic, &response).await?;
+                match create_new_nodes(add_data, &write_conn).await {
+                    Ok(count) => {
+                        if count > 0 {
+                            let response = json!({
+                                "status": "success",
+                                "message": format!("Successfully processed {} nodes/relations", count),
+                                "count": count
+                            });
+                            publish_result(client, &response_topic, &response).await?;
+                        } else {
+                            info!("No new nodes created or relations added (data might already exist or update occurred). Client-ID: {}", requesting_client_id);
+                            let response = json!({
+                                "status": "no_change", 
+                                "message": "No new nodes or relations were created (data might already exist or represent an update)",
+                                "count": 0
+                            });
+                            publish_result(client, &response_topic, &response).await?;
+                        }
                     },
                     Err(err) => {
                         error!("Failed to add/update nodes/relations for Client-ID: {}. Error: {}", requesting_client_id, err);
@@ -269,7 +299,75 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                     }
                 }
             } else {
-                 warn!("Missing 'data' field for 'add' request. Client: {}", requesting_client_id);
+                warn!("Missing 'data' field for 'add' request. Client: {}", requesting_client_id);
+                return publish_error_response(client, &requesting_client_id, "add", "Missing 'data' field").await;
+            }
+        },
+        
+        Some("addenergydata") => {
+            info!("Processing 'add' energydata for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/add/energydata", requesting_client_id);
+            if let Some(add_data) = json_value.get("data") { 
+                match create_new_energy_nodes(add_data, &write_conn).await {
+                    Ok(count) => {
+                        if count > 0 {
+                            let response = json!({
+                                "status": "success",
+                                "message": format!("Successfully processed {} energy nodes", count),
+                                "count": count
+                            });
+                            publish_result(client, &response_topic, &response).await?;
+                        } else {
+                            info!("No new energy nodes created (data might already exist or update occurred). Client-ID: {}", requesting_client_id);
+                            let response = json!({
+                                "status": "no_change", 
+                                "message": "No new energy nodes were created (data might already exist or represent an update)",
+                                "count": 0
+                            });
+                            publish_result(client, &response_topic, &response).await?;
+                        }
+                    },
+                    Err(err) => {
+                        error!("Failed to add/update energy nodes for Client-ID: {}. Error: {}", requesting_client_id, err);
+                        return publish_error_response(client, &requesting_client_id, "add", &format!("Failed to process add energy data request: {}", err)).await;
+                    }
+                }
+            } else {
+                warn!("Missing 'data' field for 'add' energydata request. Client: {}", requesting_client_id);
+                return publish_error_response(client, &requesting_client_id, "add", "Missing 'data' field").await;
+            }
+        },
+        
+        Some("addsensordata") => {
+            info!("Processing 'add' sensordata for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/add/sensordata", requesting_client_id);
+            if let Some(add_data) = json_value.get("data") { 
+                match create_new_sensor_nodes(add_data, &write_conn).await {
+                    Ok(count) => {
+                        if count > 0 {
+                            let response = json!({
+                                "status": "success",
+                                "message": format!("Successfully processed {} sensor nodes", count),
+                                "count": count
+                            });
+                            publish_result(client, &response_topic, &response).await?;
+                        } else {
+                            info!("No new sensor nodes created (data might already exist or update occurred). Client-ID: {}", requesting_client_id);
+                            let response = json!({
+                                "status": "no_change", 
+                                "message": "No new sensor nodes were created (data might already exist or represent an update)",
+                                "count": 0
+                            });
+                            publish_result(client, &response_topic, &response).await?;
+                        }
+                    },
+                    Err(err) => {
+                        error!("Failed to add/update sensor nodes for Client-ID: {}. Error: {}", requesting_client_id, err);
+                        return publish_error_response(client, &requesting_client_id, "add", &format!("Failed to process add sensor data request: {}", err)).await;
+                    }
+                }
+            } else {
+                warn!("Missing 'data' field for 'add' sensordata request. Client: {}", requesting_client_id);
                 return publish_error_response(client, &requesting_client_id, "add", "Missing 'data' field").await;
             }
         },
@@ -292,21 +390,19 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         Some("page") => {
             info!("Processing 'page' data for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/page", requesting_client_id);
-           
+            
             if let Some(page_number) = json_value.get("data").and_then(Value::as_u64).map(|v| v as usize) {
-               
-                 let page_index = if page_number > 0 { page_number - 1 } else { 0 };
-                match get_paginated_uuids(&write_conn, page_index).await { 
-                    Some(nodes) => {
+                match get_paginated_ids(page_number, &write_conn).await {
+                    Ok(nodes) => {
                         publish_result(client, &response_topic, &nodes).await?;
                     },
-                    None => {
-                        error!("Failed to get paginated data (page {}) for Client-ID: {}", page_number, requesting_client_id);
-                        return publish_error_response(client, &requesting_client_id, "page", "Failed to get paginated data").await;
+                    Err(e) => {
+                        error!("Failed to get paginated data (page {}) for Client-ID: {}: {}", page_number, requesting_client_id, e);
+                        return publish_error_response(client, &requesting_client_id, "page", &format!("Failed to get paginated data: {}", e)).await;
                     }
                 }
             } else {
-                 warn!("Missing or invalid 'data' field for 'page' request. Client: {}", requesting_client_id);
+                warn!("Missing or invalid 'data' field for 'page' request. Client: {}", requesting_client_id);
                 return publish_error_response(client, &requesting_client_id, "page", "Missing or invalid 'data' field (must be a positive integer page number)").await;
             }
         },
@@ -314,21 +410,21 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         Some("delete") => {
             info!("Processing 'delete' data for Client-ID: {}", requesting_client_id);
             let response_topic = format!("rust/response/{}/delete", requesting_client_id);
-
+        
             if let Some(data_value) = json_value.get("data") {
-                if let Some(uuid_array) = data_value.as_array() {
+                if let Some(id_array) = data_value.as_array() {
                     
-                    let uuids_to_delete: Vec<String> = uuid_array.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
+                    let ids_to_delete: Vec<i64> = id_array.iter()
+                        .filter_map(|v| v.as_i64())
                         .collect();
-
-                    if uuids_to_delete.is_empty() && !uuid_array.is_empty() {
-                         warn!("'data' array for 'delete' request contained no valid strings. Client: {}", requesting_client_id);
-                         return publish_error_response(client, &requesting_client_id, "delete", "'data' array must contain strings").await;
+        
+                    if ids_to_delete.is_empty() && !id_array.is_empty() {
+                         warn!("'data' array for 'delete' request contained no valid numeric IDs. Client: {}", requesting_client_id);
+                         return publish_error_response(client, &requesting_client_id, "delete", "'data' array must contain numeric IDs").await;
                     }
-                     if uuids_to_delete.is_empty() && uuid_array.is_empty() {
+                     if ids_to_delete.is_empty() && id_array.is_empty() {
                          info!("Received empty 'data' array for 'delete' request. No action taken. Client: {}", requesting_client_id);
-    
+        
                          let response = json!({
                              "status": "success",
                              "message": "Received empty list, no nodes deleted.",
@@ -338,7 +434,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                          
                      } else {
                        
-                        match delete_uuid_nodes(&write_conn, &uuids_to_delete).await {
+                        match delete_data_by_id(&ids_to_delete, &write_conn).await {
                             Ok(deleted_count) => {
                                 if deleted_count > 0 {
                                     info!("Successfully deleted {} nodes for Client-ID: {}", deleted_count, requesting_client_id);
@@ -349,10 +445,10 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                                     });
                                     publish_result(client, &response_topic, &response).await?;
                                 } else {
-                                    warn!("No nodes found matching the provided UUIDs for deletion. Client-ID: {}", requesting_client_id);
+                                    warn!("No nodes found matching the provided IDs for deletion. Client-ID: {}", requesting_client_id);
                                     let response = json!({
                                         "status": "not_found", 
-                                        "message": "No nodes found matching the provided UUIDs.",
+                                        "message": "No nodes found matching the provided IDs.",
                                         "deleted_count": 0
                                     });
                                     publish_result(client, &response_topic, &response).await?;
@@ -365,8 +461,8 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                         }
                     }
                 } else {
-                    warn!("Invalid 'data' field format for 'delete' request (must be an array of strings). Client: {}", requesting_client_id);
-                    return publish_error_response(client, &requesting_client_id, "delete", "Invalid 'data' field format (must be an array of strings)").await;
+                    warn!("Invalid 'data' field format for 'delete' request (must be an array of numeric IDs). Client: {}", requesting_client_id);
+                    return publish_error_response(client, &requesting_client_id, "delete", "Invalid 'data' field format (must be an array of numeric IDs)").await;
                 }
             } else {
                  warn!("Missing 'data' field for 'delete' request. Client: {}", requesting_client_id);

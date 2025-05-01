@@ -2,6 +2,9 @@ use neo4rs::{Graph, query};
 use log::{error, info};
 use serde_json::Value;
 
+// Exports all relationships from multiple database shards as JSON, with an optional limit on the number of paths.
+// Input: &Graph - a reference to the Neo4j graph instance, limit - optional maximum number of paths to retrieve.
+// Returns: Option<Value> - JSON array of paths or None if no paths are found.
 pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) -> Option<Value> {
    
     let mut path_count = 0;
@@ -9,6 +12,9 @@ pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) 
     
     let mut all_paths = Vec::new();
     
+    // Retrieves relationships from a specific database shard as JSON, with an optional limit on the number of paths.
+    // Input: &Graph - a reference to the Neo4j graph instance, shard_name - the name of the shard, remaining_limit - optional limit for paths.
+    // Returns: Result<Value, String> - JSON array of paths or an error message.
     async fn get_shard_paths(graph: &Graph, shard_name: &str, remaining_limit: Option<usize>) -> Result<Value, String> {
       
         let limit_clause = match remaining_limit {

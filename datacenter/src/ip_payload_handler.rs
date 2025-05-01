@@ -5,7 +5,6 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 use crate::db;
-// use crate::db_operations::crud::create_new_relation;
 use crate::db_operations::sharding::*;
 use crate::command_handler::router;
 

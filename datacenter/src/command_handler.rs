@@ -1,5 +1,4 @@
-use crate::db_operations::admin::reset_database;
-use crate::db_operations::bigfiles::process_large_json_file;
+use crate::db_operations::admin::*;
 use log::{error, info};
 use std::process::exit;
 use std::sync::Arc;
@@ -25,22 +24,23 @@ pub async fn router(command: &str, db_handler: Arc<db::DatabaseCluster>) -> Resu
                 }
             }
         }
-        "load" => {
-            info!{"Load Json from Server..."};
-            let db = db_handler.get_main_db().await;
-            match process_large_json_file(&db).await{
-                Ok(_) => {
-                    info!("Successfull add");
+        "generate" => {
+            info!("Generating data...");
+            let db = db_handler.get_system_db().await;
+            match generate_data_fast(&db, 10000).await {
+                Ok(count) => {
+                    info!("Generated {} records successfully", count);
                     Ok(true)
                 },
                 Err(e) => {
-                    error!("Failed to load big json file: {}", e);
-                    Err(format!("Failed to load big json file: {}", e))
+                    error!("Failed to generate data: {}", e);
+                    Err(format!("Failed to generate data: {}", e))
                 }
-            }}
+            }
+        }
 
         "help" => {
-            info!("Available commands: exit, init, help, status");
+            info!("Available commands: exit, help, status, generate");
             Ok(true)
         }
         "status" => {

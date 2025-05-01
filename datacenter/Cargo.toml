@@ -23,6 +23,8 @@ regex = "1.11.0"
 rayon = "1.9"
 memmap2 = "0.9"
 thiserror = "2.0.12"
+rand = "0.9.1"
+rand_core = "0.9.3"
 
 
 [dev-dependencies]

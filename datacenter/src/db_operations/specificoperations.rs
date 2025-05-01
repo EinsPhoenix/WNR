@@ -1,14 +1,18 @@
 use neo4rs::{Graph, query};
 use log::{error, info};
 use serde_json::{json, Value};
+use crate::db_operations::cypher_queries::{
+    GET_TEMPERATURE_HUMIDITY_AT_TIME, GET_NODES_IN_TIME_RANGE,
+    GET_NODES_WITH_TEMPERATURE_OR_HUMIDITY, GET_NODES_WITH_ENERGY_COST,
+    GET_NODES_WITH_ENERGY_CONSUME, GET_NODES_WITH_COLOR
+};
 
+// Retrieves temperature and humidity at a specific timestamp.
+// Input: &Graph - a reference to the Neo4j graph instance, timestamp - the target timestamp as a string.
+// Returns: Option<(f64, f64)> - a tuple containing temperature and humidity or None if not found.
 pub async fn get_temperature_humidity_at_time(graph: &Graph, timestamp: &str) -> Option<(f64, f64)> {
-    let cypher_query = query(r#"
-        MATCH (t:Timestamp {value: $timestamp})-[:SENSOR_DATA]->(temp:Temperature),
-              (t)-[:SENSOR_DATA]->(hum:Humidity)
-        RETURN temp.value AS temperature, hum.value AS humidity
-    "#)
-    .param("timestamp", timestamp);
+    let cypher_query = query(GET_TEMPERATURE_HUMIDITY_AT_TIME)
+        .param("timestamp", timestamp);
 
     match graph.execute(cypher_query).await {
         Ok(mut result) => {
@@ -26,22 +30,20 @@ pub async fn get_temperature_humidity_at_time(graph: &Graph, timestamp: &str) ->
     }
 }
 
-// Funktion, um alle Nodes innerhalb eines Zeitraums zu bekommen
+// Retrieves nodes within a specific time range.
+// Input: start - start timestamp, end - end timestamp, &Graph - a reference to the Neo4j graph instance.
+// Returns: Option<Value> - a JSON array of UUIDs or None if no nodes are found.
 pub async fn get_nodes_in_time_range(start: &str, end: &str, graph: &Graph) -> Option<Value> {
-    let query = query(r#"
-        MATCH (uuid:UUID)-[:HAS_TIMESTAMP]->(timestamp:Timestamp)
-        WHERE timestamp.value >= $start AND timestamp.value <= $end
-        RETURN uuid
-    "#)
-    .param("start", start)
-    .param("end", end);
+    let cypher_query = query(GET_NODES_IN_TIME_RANGE)
+        .param("start", start)
+        .param("end", end);
 
-    match graph.execute(query).await {
+    match graph.execute(cypher_query).await {
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let node: Value = row.get("uuid").unwrap();
-                uuids.push(node);
+                let uuid: String = row.get("uuid").unwrap_or_default();
+                uuids.push(json!(uuid));
             }
             Some(json!(uuids))
         },
@@ -52,22 +54,20 @@ pub async fn get_nodes_in_time_range(start: &str, end: &str, graph: &Graph) -> O
     }
 }
 
-// Funktion, um alle Nodes mit einer bestimmten Temperatur oder Luftfeuchtigkeit zu bekommen
+// Retrieves nodes with a specific temperature or humidity value.
+// Input: temp - temperature value, humidity - humidity value, &Graph - a reference to the Neo4j graph instance.
+// Returns: Option<Value> - a JSON array of UUIDs or None if no nodes are found.
 pub async fn get_nodes_with_temperature_or_humidity(temp: f64, humidity: f64, graph: &Graph) -> Option<Value> {
-    let query = query(r#"
-        MATCH (uuid:UUID)-[:HAS_TEMPERATURE]->(temperature:Temperature {value: $temp}),
-              (uuid)-[:HAS_HUMIDITY]->(humidity:Humidity {value: $humidity})
-        RETURN uuid
-    "#)
-    .param("temp", temp)
-    .param("humidity", humidity);
+    let cypher_query = query(GET_NODES_WITH_TEMPERATURE_OR_HUMIDITY)
+        .param("temp", temp)
+        .param("humidity", humidity);
 
-    match graph.execute(query).await {
+    match graph.execute(cypher_query).await {
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let node: Value = row.get("uuid").unwrap();
-                uuids.push(node);
+                let uuid: String = row.get("uuid").unwrap_or_default();
+                uuids.push(json!(uuid));
             }
             Some(json!(uuids))
         },
@@ -78,20 +78,19 @@ pub async fn get_nodes_with_temperature_or_humidity(temp: f64, humidity: f64, gr
     }
 }
 
-// Funktion, um alle Nodes mit einer bestimmten Energiekosten zu bekommen
+// Retrieves nodes with a specific energy cost value.
+// Input: energy_cost - the target energy cost, &Graph - a reference to the Neo4j graph instance.
+// Returns: Option<Value> - a JSON array of UUIDs or None if no nodes are found.
 pub async fn get_nodes_with_energy_cost(energy_cost: f64, graph: &Graph) -> Option<Value> {
-    let query = query(r#"
-        MATCH (uuid:UUID)-[:HAS_ENERGYCOST]->(energyCost:EnergyCost {value: $energy_cost})
-        RETURN uuid
-    "#)
-    .param("energy_cost", energy_cost);
+    let cypher_query = query(GET_NODES_WITH_ENERGY_COST)
+        .param("energy_cost", energy_cost);
 
-    match graph.execute(query).await {
+    match graph.execute(cypher_query).await {
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let node: Value = row.get("uuid").unwrap();
-                uuids.push(node);
+                let uuid: String = row.get("uuid").unwrap_or_default();
+                uuids.push(json!(uuid));
             }
             Some(json!(uuids))
         },
@@ -102,20 +101,19 @@ pub async fn get_nodes_with_energy_cost(energy_cost: f64, graph: &Graph) -> Opti
     }
 }
 
-// Funktion, um alle Nodes mit einem bestimmten Energieverbrauch zu bekommen
+// Retrieves nodes with a specific energy consumption value.
+// Input: energy_consume - the target energy consumption, &Graph - a reference to the Neo4j graph instance.
+// Returns: Option<Value> - a JSON array of UUIDs or None if no nodes are found.
 pub async fn get_nodes_with_energy_consume(energy_consume: f64, graph: &Graph) -> Option<Value> {
-    let query = query(r#"
-        MATCH (uuid:UUID)-[:HAS_ENERGYCONSUME]->(energyConsume:EnergyConsume {value: $energy_consume})
-        RETURN uuid
-    "#)
-    .param("energy_consume", energy_consume);
+    let cypher_query = query(GET_NODES_WITH_ENERGY_CONSUME)
+        .param("energy_consume", energy_consume);
 
-    match graph.execute(query).await {
+    match graph.execute(cypher_query).await {
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let node: Value = row.get("uuid").unwrap();
-                uuids.push(node);
+                let uuid: String = row.get("uuid").unwrap_or_default();
+                uuids.push(json!(uuid));
             }
             Some(json!(uuids))
         },
@@ -126,26 +124,20 @@ pub async fn get_nodes_with_energy_consume(energy_consume: f64, graph: &Graph) -
     }
 }
 
-// Funktion, um alle Nodes mit einer bestimmten Farbe zu bekommen
+// Retrieves nodes with a specific color.
+// Input: color - the target color as a string, &Graph - a reference to the Neo4j graph instance.
+// Returns: Option<Value> - a JSON array of nodes with their ID, UUID, and color or None if no nodes are found.
 pub async fn get_nodes_with_color(color: &str, graph: &Graph) -> Option<Value> {
-    
-    let query = query(r#"
-        USE fabric.dbshard1
-        MATCH (id_node)-[:HAS_COLOR]->(color_node:Color {value: $color})
-        OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
-        RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
-    "#)
-    .param("color", color);
+    let cypher_query = query(GET_NODES_WITH_COLOR)
+        .param("color", color);
 
-    match graph.execute(query).await {
+    match graph.execute(cypher_query).await {
         Ok(mut result) => {
-           
             let mut nodes_data = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-               
-                let id_val: Value = row.get("id").unwrap_or(Value::Null);
-                let uuid_val: Value = row.get("uuid").unwrap_or(Value::Null);
-                let color_val: Value = row.get("color").unwrap_or(Value::Null);
+                let id_val: i64 = row.get("id").unwrap_or_default();
+                let uuid_val: String = row.get("uuid").unwrap_or_default();
+                let color_val: String = row.get("color").unwrap_or_default();
 
                 nodes_data.push(json!({
                     "id": id_val,

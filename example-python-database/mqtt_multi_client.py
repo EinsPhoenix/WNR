@@ -82,12 +82,12 @@ class MqttClient:
 
     def on_message(self, client, userdata, msg):
         try:
-
             if self.first_response_time is None:
                 self.first_response_time = time.time()
 
             payload = json.loads(msg.payload.decode())
 
+            # Check for paginated message format
             page_pattern = re.compile(r"(.*)/page/(\d+)")
             page_match = page_pattern.match(msg.topic)
             if page_match:
@@ -99,6 +99,7 @@ class MqttClient:
                 self.is_paginated = True
                 return
 
+            # Check for pagination summary
             if msg.topic.endswith("/summary"):
                 with self.lock:
                     log_msg = f"Client {self.client_id} received pagination summary on {msg.topic}"
@@ -108,6 +109,21 @@ class MqttClient:
                 self.is_paginated = True
                 return
 
+            # Handle new paginated format (for "page" requests)
+            if (
+                isinstance(payload, dict)
+                and "total_pages" in payload
+                and "page_content" in payload
+            ):
+                with self.lock:
+                    log_msg = f"Client {self.client_id} received paginated response on {msg.topic}"
+                    print(f"\n📋 {log_msg}")
+                    self.logger.info(log_msg)
+                self.handle_new_pagination_format(msg.topic, payload)
+                self.is_paginated = True
+                return
+
+            # Regular response
             with self.lock:
                 log_msg = f"Client {self.client_id} received response on {msg.topic}"
                 print(f"\n📨 {log_msg}")
@@ -138,6 +154,22 @@ class MqttClient:
                 )
                 print(f"⚠️ {log_msg}")
                 self.logger.error(log_msg)
+
+    def handle_new_pagination_format(self, topic, payload):
+        """Handle new pagination format from the 'page' request type"""
+        total_pages = payload.get("total_pages", 0)
+        current_page = payload.get("current_page", 1)
+        page_content = payload.get("page_content", [])
+
+        with self.lock:
+            log_msg = f"Pagination data: Page {current_page} of {total_pages} with {len(page_content)} items"
+            print(f"📊 {log_msg}")
+            self.logger.info(log_msg)
+
+        self.received_response = payload
+        self.end_time = time.time()
+        self.request_completed = True
+        self.response_received.set()
 
     def handle_paginated_message(self, match, payload):
         base_topic = match.group(1)
@@ -384,66 +416,9 @@ def run_test_client(client_name, request_type, params):
     """Run a single test client with the given parameters"""
     client = MqttClient(client_name)
 
-    if request_type == "uuid":
-        uuid_val = params.get("uuid", 1)
-        return client.send_request(
-            {"request": "uuid", "payload": [{"uuid": uuid_val}]}, "uuid"
-        )
-    elif request_type == "all":
-        return client.send_request({"request": "all"}, "all")
-    elif request_type == "color":
-        color = params.get("color", "red")
-        return client.send_request({"request": "color", "data": color}, "color")
-    elif request_type == "time_range":
-        start = params.get("start", "2025-01-01T00:00:00Z")
-        end = params.get("end", "2025-03-01T00:00:00Z")
-        return client.send_request(
-            {"request": "time_range", "start": start, "end": end}, "time_range"
-        )
-    elif request_type == "temperature_humidity":
-        temp = params.get("temperature", 22.5)
-        hum = params.get("humidity", 45.0)
-        return client.send_request(
-            {"request": "temperature_humidity", "temperature": temp, "humidity": hum},
-            "temperature_humidity",
-        )
-    elif request_type == "timestamp":
-        ts = params.get("timestamp", "2025-02-15T12:30:00Z")
-        return client.send_request({"request": "timestamp", "data": ts}, "timestamp")
-    elif request_type == "energy_cost":
-        cost = params.get("cost", 0.25)
-        return client.send_request(
-            {"request": "energy_cost", "data": cost}, "energy_cost"
-        )
-    elif request_type == "energy_consume":
-        consume = params.get("consume", 150.0)
-        return client.send_request(
-            {"request": "energy_consume", "data": consume}, "energy_consume"
-        )
-    elif request_type == "newest":
-        return client.send_request({"request": "newest", "data": ""}, "newest")
-    elif request_type == "relation":
-        return client.send_request({"request": "relation", "data": ""}, "relation")
-    elif request_type == "page":
-        page = params.get("page", 1)
-        return client.send_request({"request": "page", "data": page}, "page")
-
-    return None
-
-
-def run_test_client_with_metrics(
-    client_name, request_type, params
-) -> Tuple[Optional[Any], Dict[str, Any]]:
-    """Run a test client and return both result and metrics"""
-    client = MqttClient(client_name)
-
     request_handlers = {
         "uuid": lambda: client.send_request(
-            {
-                "request": "uuid",
-                "payload": [{"uuid": params.get("uuid", 1)}],
-            },
-            "uuid",
+            {"request": "uuid", "payload": [{"uuid": params.get("uuid", 1)}]}, "uuid"
         ),
         "all": lambda: client.send_request({"request": "all"}, "all"),
         "color": lambda: client.send_request(
@@ -473,19 +448,117 @@ def run_test_client_with_metrics(
             "timestamp",
         ),
         "energy_cost": lambda: client.send_request(
-            {"request": "energy_cost", "data": params.get("cost", 0.25)}, "energy_cost"
+            {"request": "id_energy_cost", "data": params.get("cost", 0.25)},
+            "energy_cost",
         ),
         "energy_consume": lambda: client.send_request(
-            {"request": "energy_consume", "data": params.get("consume", 150.0)},
+            {"request": "id_energy_consume", "data": params.get("consume", 150.0)},
             "energy_consume",
         ),
-        "newest": lambda: client.send_request(
-            {"request": "newest", "data": ""}, "newest"
+        "newest": lambda: client.send_request({"request": "newestids"}, "newestids"),
+        "newest_sensor": lambda: client.send_request(
+            {"request": "newestsensordata"}, "newestsensordata"
         ),
-        "relation": lambda: client.send_request(
-            {"request": "relation", "data": ""}, "relation"
+        "newest_energy": lambda: client.send_request(
+            {"request": "newestenergydata"}, "newestenergydata"
         ),
-        "page": lambda: client.send_request({"request": "page", "data": 1}, "page"),
+        "relation": lambda: client.send_request({"request": "relation"}, "relation"),
+        "page": lambda: client.send_request(
+            {"request": "page", "data": params.get("page", 1)}, "page"
+        ),
+        "add_robot": lambda: client.send_request(
+            {"request": "addrobotdata", "data": params.get("data", [])}, "add/robotdata"
+        ),
+        "add_sensor": lambda: client.send_request(
+            {"request": "addsensordata", "data": params.get("data", [])},
+            "add/sensordata",
+        ),
+        "add_energy": lambda: client.send_request(
+            {"request": "addenergydata", "data": params.get("data", [])},
+            "add/energydata",
+        ),
+        "delete": lambda: client.send_request(
+            {"request": "delete", "data": params.get("ids", [])}, "delete"
+        ),
+    }
+
+    # Execute the appropriate handler
+    if request_type in request_handlers:
+        return request_handlers[request_type]()
+
+    return None
+
+
+def run_test_client_with_metrics(
+    client_name, request_type, params
+) -> Tuple[Optional[Any], Dict[str, Any]]:
+    """Run a test client and return both result and metrics"""
+    client = MqttClient(client_name)
+
+    request_handlers = {
+        "uuid": lambda: client.send_request(
+            {"request": "uuid", "payload": [{"uuid": params.get("uuid", 1)}]}, "uuid"
+        ),
+        "all": lambda: client.send_request({"request": "all"}, "all"),
+        "color": lambda: client.send_request(
+            {"request": "color", "data": params.get("color", "red")}, "color"
+        ),
+        "time_range": lambda: client.send_request(
+            {
+                "request": "time_range",
+                "start": params.get("start", "2025-01-01T00:00:00Z"),
+                "end": params.get("end", "2025-03-01T00:00:00Z"),
+            },
+            "time_range",
+        ),
+        "temperature_humidity": lambda: client.send_request(
+            {
+                "request": "temperature_humidity",
+                "temperature": params.get("temperature", 22.5),
+                "humidity": params.get("humidity", 45.0),
+            },
+            "temperature_humidity",
+        ),
+        "timestamp": lambda: client.send_request(
+            {
+                "request": "timestamp",
+                "data": params.get("timestamp", "2025-02-15T12:30:00Z"),
+            },
+            "timestamp",
+        ),
+        "energy_cost": lambda: client.send_request(
+            {"request": "id_energy_cost", "data": params.get("cost", 0.25)},
+            "energy_cost",
+        ),
+        "energy_consume": lambda: client.send_request(
+            {"request": "id_energy_consume", "data": params.get("consume", 150.0)},
+            "energy_consume",
+        ),
+        "newest": lambda: client.send_request({"request": "newestids"}, "newestids"),
+        "newest_sensor": lambda: client.send_request(
+            {"request": "newestsensordata"}, "newestsensordata"
+        ),
+        "newest_energy": lambda: client.send_request(
+            {"request": "newestenergydata"}, "newestenergydata"
+        ),
+        "relation": lambda: client.send_request({"request": "relation"}, "relation"),
+        "page": lambda: client.send_request(
+            {"request": "page", "data": params.get("page", 1)}, "page"
+        ),
+        "add_robot": lambda: client.send_request(
+            {"request": "addrobotdata", "data": params.get("data", [])}, "add/robotdata"
+        ),
+        "add_sensor": lambda: client.send_request(
+            {"request": "addsensordata", "data": params.get("data", [])},
+            "add/sensordata",
+        ),
+        "add_energy": lambda: client.send_request(
+            {"request": "addenergydata", "data": params.get("data", [])},
+            "add/energydata",
+        ),
+        "delete": lambda: client.send_request(
+            {"request": "delete", "data": params.get("ids", [])}, "delete"
+        ),
     }
 
     # Execute the appropriate handler
@@ -509,6 +582,8 @@ def run_multiple_clients(num_clients=5, test_type=None):
         "energy_cost",
         "energy_consume",
         "newest",
+        "newest_sensor",
+        "newest_energy",
         "relation",
         "page",
     ]
@@ -544,6 +619,8 @@ def run_multiple_clients(num_clients=5, test_type=None):
             params["cost"] = 0.20 + (i * 0.05)
         elif selected_test == "energy_consume":
             params["consume"] = 100.0 + (i * 50.0)
+        elif selected_test == "page":
+            params["page"] = (i % 5) + 1  # Pages 1-5
 
         tasks.append((client_name, selected_test, params))
 
@@ -692,8 +769,14 @@ if __name__ == "__main__":
             "energy_cost",
             "energy_consume",
             "newest",
+            "newest_sensor",
+            "newest_energy",
             "relation",
             "page",
+            "add_robot",
+            "add_sensor",
+            "add_energy",
+            "delete",
         ],
         help="Specific test to run (if not specified, random tests will be chosen)",
     )

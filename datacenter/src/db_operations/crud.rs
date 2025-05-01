@@ -1,419 +1,694 @@
 use neo4rs::{Graph, query};
 use log::{error, info, warn};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
+use super::cypher_queries::*;
 
-pub async fn validate_and_get_data_array<'a>(data: &'a Value) -> Result<&'a Vec<Value>, String> {
-    
-    let data_array = if data.is_array() {
-        data.as_array()
-    } else {
-        data.get("data").and_then(|d| d.as_array())
-    };
-
-    match data_array {
-        Some(array) => {
-            
-            if array.is_empty() {
-                info!("Received empty data array. Proceeding.");
-                return Ok(array);
-            }
-
-            for item in array {
-                if !validate_item(item).await {
-                    let error_msg = format!("Invalid item in data array: {:?}", item);
-                    error!("{}", error_msg);
-                    return Err(error_msg);
-                }
-            }
-            Ok(array) 
-        }
-        None => {
-            let error_msg = "Input data is not an array and does not contain a 'data' key with an array value.".to_string();
-            info!("{}", error_msg); 
-            Err(error_msg)
-        }
-    }
-}
-
-async fn validate_item(item: &Value) -> bool {
-    item.get("uuid").and_then(|v| v.as_str()).is_some()
-        && item.get("color").and_then(|v| v.as_str()).is_some()
-        && item.get("sensor_data").map(|v| v.is_object()).unwrap_or(false)
-        && item.get("sensor_data").and_then(|sd| sd.get("temperature")).and_then(|t| t.as_f64()).is_some()
-        && item.get("sensor_data").and_then(|sd| sd.get("humidity")).and_then(|h| h.as_f64()).is_some()
-        && item.get("timestamp").and_then(|v| v.as_str()).is_some()
-        && item.get("energy_consume").and_then(|v| v.as_f64()).is_some()
-        && item.get("energy_cost").and_then(|v| v.as_f64()).is_some()
-        && item.get("id").and_then(|v| v.as_f64()).is_some()
-}
-
-//create function
-pub async fn create_new_relation(data: &Value, graph: &Graph) -> Result<bool, String> {
-    
-    let data_array = validate_and_get_data_array(data).await?;
-
-    if data_array.is_empty() {
-        info!("Received empty validated data array. No nodes will be created.");
-        return Ok(false);
-    }
-  
-    let neo4j_data: Vec<HashMap<String, Value>> = data_array.iter().map(|item| {
-        let mut record = HashMap::new();
-        if let Some(uuid) = item.get("uuid").and_then(|v| v.as_str()) {
-            record.insert("uuid".to_string(), Value::String(uuid.to_string()));
-        }
-        if let Some(color) = item.get("color").and_then(|v| v.as_str()) {
-            record.insert("color".to_string(), Value::String(color.to_string()));
-        }
-        if let Some(timestamp) = item.get("timestamp").and_then(|v| v.as_str()) {
-            record.insert("timestamp".to_string(), Value::String(timestamp.to_string()));
-        }
-        if let Some(energy_consume) = item.get("energy_consume").and_then(|v| v.as_f64()) {
-            if let Some(num) = serde_json::Number::from_f64(energy_consume) {
-                record.insert("energy_consume".to_string(), Value::Number(num));
-            }
-        }
-        if let Some(energy_cost) = item.get("energy_cost").and_then(|v| v.as_f64()) {
-            if let Some(num) = serde_json::Number::from_f64(energy_cost) {
-                record.insert("energy_cost".to_string(), Value::Number(num));
-            }
-        }
-
-        if let Some(id) = item.get("id").and_then(|v| v.as_f64()) {
-            if let Some(num) = serde_json::Number::from_f64(id) {
-                record.insert("id".to_string(), Value::Number(num));
-            }
-        }
-
-        if let Some(sensor_data) = item.get("sensor_data").and_then(|v| v.as_object()) {
-            if let Some(temp) = sensor_data.get("temperature").and_then(|v| v.as_f64()) {
-                if let Some(num) = serde_json::Number::from_f64(temp) {
-                    record.insert("sensor_data.temperature".to_string(), Value::Number(num));
-                }
-            }
-            if let Some(humidity) = sensor_data.get("humidity").and_then(|v| v.as_f64()) {
-                if let Some(num) = serde_json::Number::from_f64(humidity) {
-                    record.insert("sensor_data.humidity".to_string(), Value::Number(num));
-                }
-            }
-        }
-        record
-    }).collect();
-
-    let json_data = match serde_json::to_string(&neo4j_data) {
-        Ok(s) => s,
-        Err(e) => {
-            let error_msg = format!("Failed to serialize data: {}", e);
-            error!("{}", error_msg);
-            return Err(error_msg);
-        }
-    };
-
-    let creation_query = query(r#"
-        WITH apoc.convert.fromJsonList($data) AS records
-        UNWIND records AS record
-        OPTIONAL MATCH (existingUuid:UUID {id: record.uuid})
-        WITH record, existingUuid
-        WHERE existingUuid IS NULL
-        MERGE (uuid:UUID {id: record.uuid})
-        SET uuid.energy_consume = record.energy_consume,
-            uuid.energy_cost = record.energy_cost,
-            uuid.color = record.color,
-            uuid.timestamp = record.timestamp,
-            uuid.temperature = record.`sensor_data.temperature`,
-            uuid.humidity = record.`sensor_data.humidity`
-        MERGE (color:Color {value: record.color})
-        MERGE (uuid)-[:HAS_COLOR]->(color)
-        MERGE (temperature:Temperature {value: record.`sensor_data.temperature`})
-        MERGE (uuid)-[:HAS_TEMPERATURE]->(temperature)
-        MERGE (humidity:Humidity {value: record.`sensor_data.humidity`})
-        MERGE (uuid)-[:HAS_HUMIDITY]->(humidity)
-        MERGE (timestamp:Timestamp {value: record.timestamp})
-        MERGE (uuid)-[:HAS_TIMESTAMP]->(timestamp)
-        MERGE (timestamp)-[:SENSOR_DATA]->(temperature)
-        MERGE (timestamp)-[:SENSOR_DATA]->(humidity)
-        MERGE (energyCost:EnergyCost {value: record.energy_cost})
-        MERGE (uuid)-[:HAS_ENERGYCOST]->(energyCost)
-        MERGE (timestamp)-[:HAS_PRICE]->(energyCost)
-        MERGE (energyConsume:EnergyConsume {value: record.energy_consume})
-        MERGE (uuid)-[:HAS_ENERGYCONSUME]->(energyConsume)
-        RETURN uuid.id AS processed_uuid
-    "#)
-    .param("data", json_data);
-
-    match graph.execute(creation_query).await {
-        Ok(mut result) => {
-            let mut processed_count = 0;
-            while let Ok(Some(_)) = result.next().await {
-                processed_count += 1;
-            }
-            if processed_count > 0 {
-                info!("Processed: {} Node(s)", processed_count);
-                Ok(true)
-            } else {
-                let warning_msg = "No new Nodes were created (UUIDs might already exist or data was empty)";
-                warn!("{}", warning_msg);
-                Ok(false) 
-            }
-        }
-        Err(e) => {
-            let error_msg = format!("Failed to execute Neo4j query: {}", e);
-            error!("{}", error_msg);
-            Err(error_msg)
-        }
-    }
-}
-
-pub async fn get_specific_uuid_node(uuid: &str, graph: &Graph) -> Option<Value> {
+// Retrieves and combines data from multiple database shards.
+// Input: &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<Value, String> - combined data as JSON or an error message.
+pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
+    let mut combined_results: HashMap<i64, Value> = HashMap::new();
    
-    let query = query(r#"
-        MATCH (uuidNode:UUID {id: $uuid})
-        RETURN uuidNode.id AS uuid,
-            uuidNode.color AS color,
-            uuidNode.temperature AS temperature,
-            uuidNode.humidity AS humidity,
-            uuidNode.timestamp AS timestamp,
-            uuidNode.energy_consume AS energy_consume,
-            uuidNode.energy_cost AS energy_cost
-        LIMIT 1
-    "#)
-    .param("uuid", uuid);
+    let mut shard2_data_map: HashMap<i64, Vec<Value>> = HashMap::new();
+    
+    let mut shard3_data_map: HashMap<i64, Vec<Value>> = HashMap::new();
 
-    match graph.execute(query).await {
+    let shard1_cypher = GET_ALL_DATA_SHARD1;
+    let shard1_query = query(shard1_cypher);
+
+    match graph.execute(shard1_query).await {
         Ok(mut result) => {
-            if let Ok(Some(row)) = result.next().await {
-              
-                let uuid_val: String = row.get("uuid").unwrap_or_default();
-                let color_val: String = row.get("color").unwrap_or_default();
-                let temperature: f64 = row.get("temperature").unwrap_or(0.0);
-                let humidity: f64 = row.get("humidity").unwrap_or(0.0);
-                let timestamp_val: String = row.get("timestamp").unwrap_or_default();
-                let energy_consume: f64 = row.get("energy_consume").unwrap_or(0.0);
-                let energy_cost: f64 = row.get("energy_cost").unwrap_or(0.0);
-
-                Some(json!({
-                    "uuid": uuid_val,
-                    "color": color_val,
-                    "sensor_data": {
-                        "temperature": temperature,
-                        "humidity": humidity
-                    },
-                    "timestamp": timestamp_val,
-                    "energy_consume": energy_consume,
-                    "energy_cost": energy_cost
-                }))
-            } else {
-                None
-            }
-        },
-        Err(e) => {
-            error!("Failed to execute Neo4j query: {}", e);
-            None
-        }
-    }
-}
-
-pub async fn get_all_uuid_nodes(graph: &Graph) -> Option<Value> {
-    let query = query(r#"
-        MATCH (uuidNode:UUID)
-        RETURN uuidNode.id AS uuid,
-            uuidNode.color AS color,
-            { temperature: uuidNode.temperature, humidity: uuidNode.humidity } AS sensor_data,
-            uuidNode.timestamp AS timestamp,
-            uuidNode.energy_consume AS energy_consume,
-            uuidNode.energy_cost AS energy_cost
-        ORDER BY uuidNode.timestamp DESC
-    "#);
-
-    match graph.execute(query).await {
-        Ok(mut result) => {
-            let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let uuid_val: String = row.get("uuid").unwrap_or_default();
-                let color_val: String = row.get("color").unwrap_or_default();
-                let sensor_data: Value = row.get("sensor_data").unwrap_or(json!({}));
-                let timestamp_val: String = row.get("timestamp").unwrap_or_default();
-                let energy_consume: f64 = row.get("energy_consume").unwrap_or(0.0);
-                let energy_cost: f64 = row.get("energy_cost").unwrap_or(0.0);
+                let id_val: i64 = match row.get("id") {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Shard 1: Failed to get id from row: {}", e);
+                        continue;
+                    }
+                };
+                let uuid_val: Option<String> = row.get("uuid").ok();
+                let color_val: Option<String> = row.get("color").ok();
 
-                uuids.push(json!({
+                combined_results.insert(id_val, json!({
+                    "id": id_val,
                     "uuid": uuid_val,
                     "color": color_val,
-                    "sensor_data": {
-                        "temperature": sensor_data["temperature"].as_f64().unwrap_or(0.0),
-                        "humidity": sensor_data["humidity"].as_f64().unwrap_or(0.0)
-                    },
-                    "timestamp": timestamp_val,
-                    "energy_consume": energy_consume,
-                    "energy_cost": energy_cost
+                    "sensor_data": [] 
                 }));
             }
-
-            info!("Returned nodes count: {}", uuids.len());
-
-            Some(json!(uuids))
-        },
+        }
         Err(e) => {
-            error!("Failed to execute Neo4j query: {}", e);
-            None
+            let error_msg = format!("Failed to execute Shard 1 query in get_all_data: {}", e);
+            error!("{}", error_msg);
+            
         }
     }
-}
 
-pub async fn get_paginated_uuids(graph: &Graph, page: usize) -> Option<Value> {
-    const PAGE_SIZE: usize = 25;
-    
-    let count_query = query(r#"
-        MATCH (uuidNode:UUID)
-        RETURN count(uuidNode) AS total
-    "#);
-    
-    let total_count = match graph.execute(count_query).await {
+    let shard2_cypher = GET_ALL_DATA_SHARD2;
+    let shard2_query = query(shard2_cypher);
+
+    match graph.execute(shard2_query).await {
         Ok(mut result) => {
-            if let Ok(Some(row)) = result.next().await {
-                let count: i64 = row.get("total").unwrap_or(0);
-                count as usize
-            } else {
-                0
-            }
-        },
-        Err(e) => {
-            error!("Failed to execute count query: {}", e);
-            return None;
-        }
-    };
-    
-    let total_pages = if total_count == 0 {
-        0
-    } else {
-        (total_count + PAGE_SIZE - 1) / PAGE_SIZE 
-    };
-    
-    let skip = page * PAGE_SIZE;
-    
-    let data_query = query(r#"
-        MATCH (uuidNode:UUID)-[:HAS_TIMESTAMP]->(timestamp:Timestamp)
-        WITH uuidNode, timestamp
-        ORDER BY timestamp.value DESC
-        RETURN 
-            uuidNode.id AS uuid,
-            uuidNode.color AS color,
-            uuidNode.temperature AS temperature,
-            uuidNode.humidity AS humidity,
-            uuidNode.timestamp AS timestamp,
-            uuidNode.energy_consume AS energy_consume,
-            uuidNode.energy_cost AS energy_cost
-        SKIP $skip
-        LIMIT $limit
-    "#)
-    .param("skip", skip as i64)
-    .param("limit", PAGE_SIZE as i64);
-    
-    match graph.execute(data_query).await {
-        Ok(mut result) => {
-            let mut nodes = Vec::new();
             while let Ok(Some(row)) = result.next().await {
+                let id_val: i64 = match row.get("id") {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Shard 2: Failed to get id from row: {}", e);
+                        continue;
+                    }
+                };
+
+                let sensor_reading: Value = match row.get("sensor_reading") {
+                    Ok(reading) => reading,
+                    Err(e) => {
+                        error!("Shard 2: Failed to get sensor_reading for id {}: {}", id_val, e);
+                        continue;
+                    }
+                };
+
+                shard2_data_map.entry(id_val).or_default().push(sensor_reading);
+            }
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to execute Shard 2 query in get_all_data: {}", e);
+            error!("{}", error_msg);
+
+        }
+    }
+
+    let shard3_cypher = GET_ALL_DATA_SHARD3;
+    let shard3_query = query(shard3_cypher);
+
+    match graph.execute(shard3_query).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                 let id_val: i64 = match row.get("id") {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Shard 3: Failed to get id from row: {}", e);
+                        continue;
+                    }
+                };
+
+                let energy_reading: Value = match row.get("energy_reading") {
+                    Ok(reading) => reading,
+                    Err(e) => {
+                        error!("Shard 3: Failed to get energy_reading for id {}: {}", id_val, e);
+                        continue;
+                    }
+                };
                 
-                let node = json!({
-                    "uuid": row.get::<Value>("uuid").unwrap_or(Value::Null),
-                    "color": row.get::<Value>("color").unwrap_or(Value::Null),
-                    "temperature": row.get::<Value>("temperature").unwrap_or(Value::Null),
-                    "humidity": row.get::<Value>("humidity").unwrap_or(Value::Null),
-                    "timestamp": row.get::<Value>("timestamp").unwrap_or(Value::Null),
-                    "energy_consume": row.get::<Value>("energy_consume").unwrap_or(Value::Null),
-                    "energy_cost": row.get::<Value>("energy_cost").unwrap_or(Value::Null)
-                });
-                nodes.push(node);
+                shard3_data_map.entry(id_val).or_default().push(energy_reading);
             }
-            
-            info!("Returning page {} of {} with {} UUIDs", 
-                  page, total_pages, nodes.len());
-            
-            Some(json!({
-                "nodes": nodes,
-                "pagination": {
-                    "total_count": total_count,
-                    "total_pages": total_pages,
-                    "current_page": page,
-                    "page_size": PAGE_SIZE
-                }
-            }))
-        },
+        }
         Err(e) => {
-            error!("Failed to execute Neo4j query: {}", e);
-            None
+            let error_msg = format!("Failed to execute Shard 3 query in get_all_data: {}", e);
+            error!("{}", error_msg);
+
         }
     }
+
+    for (id, base_data) in combined_results.iter_mut() {
+        if let Some(obj) = base_data.as_object_mut() {
+
+            let mut merged_sensor_data: Vec<Value> = Vec::new();
+
+            let s2_readings = shard2_data_map.get(id).cloned().unwrap_or_default();
+            let s3_readings = shard3_data_map.get(id).cloned().unwrap_or_default();
+
+            let num_readings = s2_readings.len().max(s3_readings.len());
+
+            for i in 0..num_readings {
+                let mut combined_reading = serde_json::Map::new();
+
+                if let Some(s2_val) = s2_readings.get(i) {
+                    if let Some(s2_obj) = s2_val.as_object() {
+                        if let Some(temp) = s2_obj.get("temperature") { combined_reading.insert("temperature".to_string(), temp.clone()); }
+                        if let Some(hum) = s2_obj.get("humidity") { combined_reading.insert("humidity".to_string(), hum.clone()); }
+                    }
+                }
+
+                if let Some(s3_val) = s3_readings.get(i) {
+                     if let Some(s3_obj) = s3_val.as_object() {
+                        if let Some(ts) = s3_obj.get("timestamp") { combined_reading.insert("timestamp".to_string(), ts.clone()); }
+                        if let Some(econ) = s3_obj.get("energy_consume") { combined_reading.insert("energy_consume".to_string(), econ.clone()); }
+                        if let Some(ecost) = s3_obj.get("energy_cost") { combined_reading.insert("energy_cost".to_string(), ecost.clone()); }
+                    }
+                }
+
+                if !combined_reading.is_empty() {
+                    merged_sensor_data.push(Value::Object(combined_reading));
+                }
+            }
+
+            let valid_readings: Vec<Value> = merged_sensor_data.into_iter()
+                .filter(|reading| !reading.is_null() && reading.is_object() && !reading.as_object().unwrap().is_empty())
+                .collect();
+            obj.insert("sensor_data".to_string(), json!(valid_readings));
+        }
+
+    }
+
+    let final_data: Vec<Value> = combined_results.into_values().collect();
+    info!("Retrieved and combined data from 3 shards for {} entries.", final_data.len());
+    Ok(json!(final_data))
 }
 
-pub async fn get_newest_uuid(graph: &Graph) -> Option<Value> {
-    let query = query(r#"
-        MATCH (uuidNode:UUID)-[:HAS_TIMESTAMP]->(timestamp:Timestamp)
-        WITH uuidNode, timestamp
-        ORDER BY timestamp.value DESC
-        RETURN uuidNode.id AS uuid
-        LIMIT 50
-    "#);
-    
-    match graph.execute(query).await {
+// Retrieves data for a specific ID from multiple database shards.
+// Input: id - the target ID, &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<Value, String> - combined data for the ID as JSON or an error message.
+pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
+    let params = HashMap::from([("target_id".to_string(), id)]);
+
+    let shard1_cypher = GET_DATA_BY_ID_SHARD1;
+
+    let shard1_query = query(shard1_cypher).params(params.clone());
+    info!("Executing Shard 1 query for ID {}", id);
+    let (id_val, uuid_val, color_val) = match graph.execute(shard1_query).await {
         Ok(mut result) => {
-            let mut uuids = Vec::new();
+            match result.next().await {
+                Ok(Some(row)) => {
+                    let id_res: i64 = row.get("id").map_err(|e| format!("Shard 1: Failed to get id: {}", e))?;
+                    if id_res != id {
+                         return Err(format!("Shard 1: ID mismatch, expected {}, got {}", id, id_res));
+                    }
+                    let uuid_res: Option<String> = row.get("uuid").ok();
+                    let color_res: Option<String> = row.get("color").ok();
+                    (id_res, uuid_res, color_res)
+                }
+                Ok(None) => return Err(format!("No data found for ID {} in Shard 1", id)),
+                Err(e) => return Err(format!("Shard 1: Failed to process result row for ID {}: {}", id, e)),
+            }
+        }
+        Err(e) => return Err(format!("Failed to execute Shard 1 query for ID {}: {}", id, e)),
+    };
+
+    let shard2_cypher = GET_DATA_BY_ID_SHARD2;
+    let shard2_query = query(shard2_cypher).params(params.clone()); 
+    info!("Executing Shard 2 query for ID {}", id);
+    let mut shard2_readings_list: Vec<Value> = Vec::new();
+
+    match graph.execute(shard2_query).await {
+        Ok(mut result) => {
             while let Ok(Some(row)) = result.next().await {
-                let node: Value = row.get("uuid").unwrap();
-                uuids.push(node);
+                 match row.get::<Value>("sensor_reading") {
+                    Ok(reading) => {
+                        if !reading.is_null() && reading.is_object() {
+                             shard2_readings_list.push(reading);
+                        } else {
+                             warn!("Shard 2: Got null or non-object sensor reading for ID {}", id);
+                        }
+                    },
+                    Err(e) => {
+                        error!("Shard 2: Failed to get sensor_reading from row for ID {}: {}", id, e);
+                    }
+                }
             }
-            Some(json!(uuids))
+
+        }
+        Err(e) => {
+            warn!("Shard 2 query execution failed or returned no data for ID {} (may indicate ID not present or other issue: {}). Proceeding with potentially incomplete sensor data.", id, e);
+
+        }
+    };
+
+    let shard3_cypher = GET_DATA_BY_ID_SHARD3;
+
+    let shard3_query = query(shard3_cypher).params(params); 
+    info!("Executing Shard 3 query for ID {}", id);
+    let mut shard3_readings_list: Vec<Value> = Vec::new();
+
+     match graph.execute(shard3_query).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                 match row.get::<Value>("energy_reading") {
+                    Ok(reading) => {
+                        if !reading.is_null() && reading.is_object() {
+                             shard3_readings_list.push(reading);
+                        } else {
+                             warn!("Shard 3: Got null or non-object energy reading for ID {}", id);
+                        }
+                    },
+                    Err(e) => {
+                        error!("Shard 3: Failed to get energy_reading from row for ID {}: {}", id, e);
+                    }
+                }
+            }
+
+        }
+        Err(e) => {
+             warn!("Shard 3 query execution failed or returned no data for ID {} (may indicate ID not present or other issue: {}). Proceeding with potentially incomplete sensor data.", id, e);
+
+        }
+    };
+
+    let mut merged_sensor_data: Vec<Value> = Vec::new();
+    let num_readings = shard2_readings_list.len().max(shard3_readings_list.len());
+
+    for i in 0..num_readings {
+        let mut combined_reading = serde_json::Map::new();
+
+        if let Some(s2_val) = shard2_readings_list.get(i) {
+            if let Some(s2_obj) = s2_val.as_object() {
+                if let Some(temp) = s2_obj.get("temperature") { combined_reading.insert("temperature".to_string(), temp.clone()); }
+                if let Some(hum) = s2_obj.get("humidity") { combined_reading.insert("humidity".to_string(), hum.clone()); }
+            }
+        }
+
+        if let Some(s3_val) = shard3_readings_list.get(i) {
+             if let Some(s3_obj) = s3_val.as_object() {
+                if let Some(ts) = s3_obj.get("timestamp") { combined_reading.insert("timestamp".to_string(), ts.clone()); }
+                if let Some(econ) = s3_obj.get("energy_consume") { combined_reading.insert("energy_consume".to_string(), econ.clone()); }
+                if let Some(ecost) = s3_obj.get("energy_cost") { combined_reading.insert("energy_cost".to_string(), ecost.clone()); }
+            }
+        }
+
+        if !combined_reading.is_empty() {
+            merged_sensor_data.push(Value::Object(combined_reading));
+        }
+    }
+
+     let valid_readings: Vec<Value> = merged_sensor_data.into_iter()
+        .filter(|reading| !reading.is_null() && reading.is_object() && !reading.as_object().unwrap().is_empty())
+        .collect();
+
+    let combined_data = json!({
+        "id": id_val,
+        "uuid": uuid_val,
+        "color": color_val,
+        "sensor_data": valid_readings 
+    });
+    info!("Successfully retrieved and combined data from 3 shards for ID {}: {:?}", id, combined_data);
+    Ok(combined_data)
+}
+// Deletes data for a list of IDs from multiple database shards.
+// Input: ids_to_delete - a vector of IDs to delete, &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<usize, String> - the number of successfully deleted nodes or an error message.
+pub async fn delete_data_by_id(ids_to_delete: &Vec<i64>, graph: &Graph) -> Result<usize, String> {
+    let mut deleted_count = 0;
+    
+    for &id in ids_to_delete {
+        let params = HashMap::from([("target_id".to_string(), id)]);
+
+        let shard1_cypher = DELETE_DATA_BY_ID_SHARD1;
+        let shard1_query = query(shard1_cypher).params(params.clone());
+
+        let shard2_cypher = DELETE_DATA_BY_ID_SHARD2;
+        let shard2_query = query(shard2_cypher).params(params.clone());
+        
+        let shard3_cypher = DELETE_DATA_BY_ID_SHARD3;
+        let shard3_query = query(shard3_cypher).params(params);
+
+        let mut node_existed = false;
+        
+        match graph.execute(shard1_query).await {
+            Ok(mut result) => {
+                if let Ok(Some(row)) = result.next().await {
+                    if let Ok(_) = row.get::<i64>("deleted_id") {
+                        node_existed = true;
+                        info!("Successfully deleted data from Shard 1 for ID {}", id);
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to delete data from Shard 1 for ID {}: {}", id, e);
+                
+            }
+        }
+
+        match graph.execute(shard2_query).await {
+            Ok(_) => {
+                info!("Successfully deleted data from Shard 2 for ID {}", id);
+            },
+            Err(e) => {
+                warn!("Failed to delete data from Shard 2 for ID {}: {}", id, e);
+            }
+        }
+
+        match graph.execute(shard3_query).await {
+            Ok(_) => {
+                info!("Successfully deleted data from Shard 3 for ID {}", id);
+            },
+            Err(e) => {
+                warn!("Failed to delete data from Shard 3 for ID {}: {}", id, e);
+            }
+        }
+
+        if node_existed {
+            deleted_count += 1;
+        }
+    }
+
+    info!("Successfully deleted {} nodes in total", deleted_count);
+    Ok(deleted_count)
+}
+// Retrieves the newest IDs from the database.
+// Input: &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<Value, String> - newest IDs as JSON or an error message.
+pub async fn get_newest_ids(graph: &Graph) -> Result<Value, String> {
+    let newest_ids_cypher = GET_NEWEST_IDS;
+    let newest_ids_query = query(newest_ids_cypher);
+    
+    let mut results = Vec::new();
+
+    match graph.execute(newest_ids_query).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                let id: i64 = match row.get("id") {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Failed to get id from row: {}", e);
+                        continue;
+                    }
+                };
+                
+                let uuid: Option<String> = row.get("uuid").ok();
+                let color: Option<String> = row.get("color").ok();
+                
+                results.push(json!({
+                    "id": id,
+                    "uuid": uuid,
+                    "color": color
+                }));
+            }
+            
+            info!("Retrieved {} newest IDs from shard 1", results.len());
+            Ok(json!(results))
         },
         Err(e) => {
-            error!("Failed to execute Neo4j query: {}", e);
-            None
-        }
-    }
-}
-
-pub async fn delete_uuid_nodes(graph: &Graph, uuids: &[String]) -> Result<usize, String> {
-    if uuids.is_empty() {
-        info!("Received empty UUID list. No nodes will be deleted.");
-        return Ok(0);
-    }
-    info!("Attempting to delete nodes with UUIDs: {:?}", uuids);
-
-    let deletion_query = query(r#"
-        UNWIND $uuids AS uuid_to_delete_id
-        MATCH (uuid:UUID {id: uuid_to_delete_id})
-        OPTIONAL MATCH (uuid)-[r]-(orphan)
-        WHERE NOT orphan:UUID AND size((orphan)--()) = 1
-        WITH uuid, collect(distinct orphan) AS orphans_to_delete
-        WITH collect({uuid_node: uuid, orphans: orphans_to_delete}) AS items_to_delete
-        UNWIND items_to_delete AS item
-        DETACH DELETE item.uuid_node
-        FOREACH (o IN item.orphans | DETACH DELETE o)
-        RETURN size(items_to_delete) as deleted_count
-    "#)
-    .param("uuids", uuids); 
-
-    match graph.execute(deletion_query).await {
-        Ok(mut result) => {
-            
-            if let Ok(Some(row)) = result.next().await {
-                let deleted_count: i64 = row.get("deleted_count").unwrap_or(0);
-                let count = deleted_count as usize;
-                if count > 0 {
-                    info!("Successfully deleted {} node(s) matching the provided UUIDs.", count);
-                } else {
-                    warn!("No nodes found matching the provided UUIDs for deletion: {:?}", uuids);
-                }
-                Ok(count) 
-            } else {
-                warn!("Deletion query did not return the expected count. Assuming 0 nodes deleted for UUIDs: {:?}", uuids);
-                Ok(0)
-            }
-        }
-        Err(e) => {
-            let error_msg = format!("Failed to execute deletion query for UUIDs {:?}: {}", uuids, e);
+            let error_msg = format!("Failed to execute GET_NEWEST_IDS query: {}", e);
             error!("{}", error_msg);
             Err(error_msg)
         }
     }
+}
+
+// Retrieves the newest sensor data from the database.
+// Input: &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<Value, String> - newest sensor data as JSON or an error message.
+pub async fn get_newest_sensordata(graph: &Graph) -> Result<Value, String> {
+    let newest_sensordata_cypher = GET_NEWEST_SENSORDATA;
+    let newest_sensordata_query = query(newest_sensordata_cypher);
+    
+    let mut results = Vec::new();
+
+    match graph.execute(newest_sensordata_query).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                
+                let id: Option<i64> = row.get("id").ok();
+                
+                let sensor_reading: Value = match row.get("sensor_reading") {
+                    Ok(reading) => reading,
+                    Err(e) => {
+                        error!("Failed to get sensor_reading: {}", e);
+                        continue;
+                    }
+                };
+                
+                results.push(json!({
+                    "id": id,
+                    "sensor_reading": sensor_reading
+                }));
+            }
+            
+            info!("Retrieved {} newest sensor readings from shard 2", results.len());
+            Ok(json!(results))
+        },
+        Err(e) => {
+            let error_msg = format!("Failed to execute GET_NEWEST_SENSORDATA query: {}", e);
+            error!("{}", error_msg);
+            Err(error_msg)
+        }
+    }
+}
+
+// Retrieves the newest energy data from the database.
+// Input: &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<Value, String> - newest energy data as JSON or an error message.
+pub async fn get_newest_energydata(graph: &Graph) -> Result<Value, String> {
+    let newest_energydata_cypher = GET_NEWEST_ENERGYDATA;
+    let newest_energydata_query = query(newest_energydata_cypher);
+    
+    let mut results = Vec::new();
+
+    match graph.execute(newest_energydata_query).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                
+                let id: Option<i64> = row.get("id").ok();
+                
+                let energy_reading: Value = match row.get("energy_reading") {
+                    Ok(reading) => reading,
+                    Err(e) => {
+                        error!("Failed to get energy_reading: {}", e);
+                        continue;
+                    }
+                };
+                
+                results.push(json!({
+                    "id": id,
+                    "energy_reading": energy_reading
+                }));
+            }
+            
+            info!("Retrieved {} newest energy readings from shard 3", results.len());
+            Ok(json!(results))
+        },
+        Err(e) => {
+            let error_msg = format!("Failed to execute GET_NEWEST_ENERGYDATA query: {}", e);
+            error!("{}", error_msg);
+            Err(error_msg)
+        }
+    }
+}
+
+// Retrieves paginated IDs and their associated data from the database.
+// Input: page - the page number, &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<Value, String> - paginated data as JSON or an error message.
+pub async fn get_paginated_ids(page: usize, graph: &Graph) -> Result<Value, String> {
+    
+    const PAGE_SIZE: usize = 25;
+    
+    let count_cypher = "USE fabric.dbshard1 MATCH (id:Id) RETURN count(id) as total";
+    let count_query = query(count_cypher);
+    
+    let total_ids = match graph.execute(count_query).await {
+        Ok(mut result) => {
+            match result.next().await {
+                Ok(Some(row)) => {
+                    match row.get::<i64>("total") {
+                        Ok(count) => count,
+                        Err(e) => return Err(format!("Failed to extract total count: {}", e))
+                    }
+                }
+                Ok(None) => return Err("Count query returned no rows.".to_string()),
+                Err(e) => return Err(format!("Failed to get result from count query: {}", e)),
+            }
+        }
+        Err(e) => return Err(format!("Failed to execute count query: {}", e)),
+    };
+    
+    let total_pages = ((total_ids as usize) + PAGE_SIZE - 1) / PAGE_SIZE; 
+    
+    let current_page = if page < 1 {
+        1
+    } else if page > total_pages && total_pages > 0 {
+        total_pages
+    } else {
+        page
+    };
+    
+    let skip = (current_page - 1) * PAGE_SIZE;
+    
+    let mut combined_results: HashMap<i64, Value> = HashMap::new();
+    let mut shard2_data_map: HashMap<i64, Vec<Value>> = HashMap::new();
+    let mut shard3_data_map: HashMap<i64, Vec<Value>> = HashMap::new();
+
+    let shard1_cypher = format!(
+        "USE fabric.dbshard1 
+         MATCH (id_node:Id) 
+         OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
+         OPTIONAL MATCH (id_node)-[:HAS_COLOR]->(color_node:Color)
+         RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
+         ORDER BY id_node.value
+         SKIP {} LIMIT {}", skip, PAGE_SIZE
+    );
+    
+    match graph.execute(query(&shard1_cypher)).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                let id_val: i64 = match row.get("id") {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Shard 1: Failed to get id from row: {}", e);
+                        continue;
+                    }
+                };
+                let uuid_val: Option<String> = row.get("uuid").ok();
+                let color_val: Option<String> = row.get("color").ok();
+
+                combined_results.insert(id_val, json!({
+                    "id": id_val,
+                    "uuid": uuid_val,
+                    "color": color_val,
+                    "sensor_data": [] 
+                }));
+            }
+        }
+        Err(e) => {
+            error!("Failed to execute Shard 1 query in get_paginated_ids: {}", e);
+        }
+    }
+    
+    let page_ids: Vec<i64> = combined_results.keys().cloned().collect();
+    
+    if page_ids.is_empty() {
+        return Ok(json!({
+            "total_pages": total_pages,
+            "current_page": current_page,
+            "page_content": []
+        }));
+    }
+    
+    let id_list = page_ids.iter()
+                         .map(|id| id.to_string())
+                         .collect::<Vec<String>>()
+                         .join(", ");
+    
+    let shard2_cypher = format!(
+        "USE fabric.dbshard2 
+         MATCH (id_node:Id) WHERE id_node.value IN [{}]
+         MATCH (id_node)-[:HAS_SENSOR_DATA]->(sensor_data_node:SensorData)
+         OPTIONAL MATCH (sensor_data_node)-[:MEASURES_TEMPERATURE]->(temp_node:Temperature)
+         OPTIONAL MATCH (sensor_data_node)-[:MEASURES_HUMIDITY]->(hum_node:Humidity)
+         RETURN id_node.value AS id, {{
+             temperature: temp_node.value,
+             humidity: hum_node.value
+         }} AS sensor_reading", id_list
+    );
+    
+    match graph.execute(query(&shard2_cypher)).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                let id_val: i64 = match row.get("id") {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Shard 2: Failed to get id from row: {}", e);
+                        continue;
+                    }
+                };
+
+                let sensor_reading: Value = match row.get("sensor_reading") {
+                    Ok(reading) => reading,
+                    Err(e) => {
+                        error!("Shard 2: Failed to get sensor_reading for id {}: {}", id_val, e);
+                        continue;
+                    }
+                };
+
+                shard2_data_map.entry(id_val).or_default().push(sensor_reading);
+            }
+        }
+        Err(e) => {
+            error!("Failed to execute Shard 2 query in get_paginated_ids: {}", e);
+        }
+    }
+    
+    let shard3_cypher = format!(
+        "USE fabric.dbshard3 
+         MATCH (id_node:Id) WHERE id_node.value IN [{}]
+         OPTIONAL MATCH (id_node)-[:RECORDED_AT]->(time_node:Timestamp)
+         OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
+         OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
+         RETURN id_node.value AS id, {{
+             timestamp: time_node.value,
+             energy_consume: econsume_node.value,
+             energy_cost: ecost_node.value
+         }} AS energy_reading
+         ORDER BY id_node.value, time_node.value", id_list
+    );
+    
+    match graph.execute(query(&shard3_cypher)).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                 let id_val: i64 = match row.get("id") {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Shard 3: Failed to get id from row: {}", e);
+                        continue;
+                    }
+                };
+
+                let energy_reading: Value = match row.get("energy_reading") {
+                    Ok(reading) => reading,
+                    Err(e) => {
+                        error!("Shard 3: Failed to get energy_reading for id {}: {}", id_val, e);
+                        continue;
+                    }
+                };
+                
+                shard3_data_map.entry(id_val).or_default().push(energy_reading);
+            }
+        }
+        Err(e) => {
+            error!("Failed to execute Shard 3 query in get_paginated_ids: {}", e);
+        }
+    }
+    
+    for (id, base_data) in combined_results.iter_mut() {
+        if let Some(obj) = base_data.as_object_mut() {
+            let mut merged_sensor_data: Vec<Value> = Vec::new();
+
+            let s2_readings = shard2_data_map.get(id).cloned().unwrap_or_default();
+            let s3_readings = shard3_data_map.get(id).cloned().unwrap_or_default();
+
+            let num_readings = s2_readings.len().max(s3_readings.len());
+
+            for i in 0..num_readings {
+                let mut combined_reading = serde_json::Map::new();
+
+                if let Some(s2_val) = s2_readings.get(i) {
+                    if let Some(s2_obj) = s2_val.as_object() {
+                        if let Some(temp) = s2_obj.get("temperature") { combined_reading.insert("temperature".to_string(), temp.clone()); }
+                        if let Some(hum) = s2_obj.get("humidity") { combined_reading.insert("humidity".to_string(), hum.clone()); }
+                    }
+                }
+
+                if let Some(s3_val) = s3_readings.get(i) {
+                     if let Some(s3_obj) = s3_val.as_object() {
+                        if let Some(ts) = s3_obj.get("timestamp") { combined_reading.insert("timestamp".to_string(), ts.clone()); }
+                        if let Some(econ) = s3_obj.get("energy_consume") { combined_reading.insert("energy_consume".to_string(), econ.clone()); }
+                        if let Some(ecost) = s3_obj.get("energy_cost") { combined_reading.insert("energy_cost".to_string(), ecost.clone()); }
+                    }
+                }
+
+                if !combined_reading.is_empty() {
+                    merged_sensor_data.push(Value::Object(combined_reading));
+                }
+            }
+
+            let valid_readings: Vec<Value> = merged_sensor_data.into_iter()
+                .filter(|reading| !reading.is_null() && reading.is_object() && !reading.as_object().unwrap().is_empty())
+                .collect();
+            obj.insert("sensor_data".to_string(), json!(valid_readings));
+        }
+    }
+
+    let mut final_data: Vec<Value> = combined_results.into_values().collect();
+    final_data.sort_by(|a, b| {
+        let a_id = a.get("id").and_then(|id| id.as_i64()).unwrap_or(0);
+        let b_id = b.get("id").and_then(|id| id.as_i64()).unwrap_or(0);
+        a_id.cmp(&b_id)
+    });
+    
+    info!("Retrieved and combined paginated data, page {} of {} with {} entries.", 
+           current_page, total_pages, final_data.len());
+    
+    Ok(json!({
+        "total_pages": total_pages,
+        "current_page": current_page,
+        "page_content": final_data
+    }))
 }

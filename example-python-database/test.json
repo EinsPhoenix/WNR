@@ -1,8 +1,7 @@
 {
-    "type": "data",
+    "type": "robotdata",
     "data": [
       {
-        "id": 1,
         "uuid": "test-uuid-1",
         "color": "blue",
         "sensor_data": {
@@ -14,7 +13,6 @@
         "energy_cost": 0.007
       },
       {
-        "id": 2,
         "uuid": "test-uuid-2",
         "color": "green",
         "sensor_data": {
