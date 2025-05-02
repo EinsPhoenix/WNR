@@ -4,8 +4,11 @@
     import type { ChartData, ChartOptions } from 'chart.js';
 
 
-    let chart: Chart<'line'>;
+    let chart1: Chart<'line'>;
     let energycost: HTMLCanvasElement;
+
+    let chart2: Chart<'line'>;
+    let multiAxis: HTMLCanvasElement;
 
     const data: ChartData<'line'> = {
         labels: ['01.05.', '02.05.', '03.05.', '04.05.', '05.05.', '06.05.', '07.05.'],
@@ -44,13 +47,72 @@
         }
     };
 
+    const data2: ChartData<'line'> = {
+    labels: ['01.05.', '02.05.', '03.05.', '04.05.', '05.05.', '06.05.', '07.05.'],
+    datasets: [
+      {
+        label: 'Temperature',
+        data: [22, 21, 23, 24, 22, 25, 26],
+        borderColor: '#FFADAD',
+        backgroundColor: 'rgba(255,0,0,0.1)',
+        yAxisID: 'y',
+      },
+      {
+        label: 'Humidity',
+        data: [40, 42, 38, 35, 37, 39, 41],
+        borderColor: '#A0C4FF',
+        backgroundColor: 'rgba(0,0,255,0.1)',
+        yAxisID: 'y1',
+      }
+    ]
+  };
+
+  const options2: ChartOptions<'line'> = {
+    responsive: true,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      title: {
+        display: true,
+      },
+      legend: {
+        display: true
+      }
+    },
+    scales: {
+      y: {
+        type: 'linear',
+        display: true,
+        position: 'left'
+      },
+      y1: {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        grid: {
+          drawOnChartArea: false
+        }
+      }
+    }
+  };
+
     onMount(() => {
-        chart = new Chart(energycost, {
+        chart1 = new Chart(energycost, {
         type: 'line',
         data,
         options
         });
-        return () => chart.destroy();
+        chart2 = new Chart(multiAxis, {
+            type: 'line',
+            data: data2,
+            options: options2
+        });
+        return () => {
+            chart1?.destroy();
+            chart2?.destroy();
+        };
     });
 </script>
 
@@ -127,6 +189,8 @@
         <div class="box-title">
             Environmental conditions
         </div>
+
+        <canvas bind:this={multiAxis}></canvas>
     </div>
 
     <div class="box box4">
@@ -290,7 +354,7 @@
     }
 
     .box2 {
-        grid-row: 4 / span 5;
+        grid-row: 4 / span 4;
         grid-column: 2 / span 12;
 
         background-color: rgb(26, 26, 26);
@@ -298,7 +362,7 @@
     }
 
     .box3 {
-        grid-row: 9 / span 8;
+        grid-row: 8 / span 8;
         grid-column: 2 / span 12;
 
         background-color: rgb(26, 26, 26);
@@ -306,7 +370,7 @@
     }
 
     .box4 {
-        grid-row: 10 / span 7;
+        grid-row: 10 / span 6;
         grid-column: 14 / span 8;
 
         background-color: rgb(26, 26, 26);
@@ -348,6 +412,18 @@
             min-width: 0;
             min-height: 400px;
             margin: 20px;
+        }
+
+        .box2 {
+            min-height: 0;
+        }
+
+        .box1 {
+            min-height: 0;
+        }
+
+        .border {
+            height: 60px;
         }
     }
 
