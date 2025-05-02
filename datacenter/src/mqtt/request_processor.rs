@@ -277,6 +277,24 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                 match create_new_nodes(add_data, &write_conn).await {
                     Ok(count) => {
                         if count > 0 {
+                            
+                            let livedata_topic = "rust/response/livedata";
+                            let livedata = json!({
+                                "type": "robotdata",
+                                "source": "mqtt",
+                                "client_id": requesting_client_id,
+                                "timestamp": chrono::Utc::now().to_rfc3339(),
+                                "count": count,
+                                "data": add_data
+                            });
+                            
+                           
+                            if let Err(e) = publish_result(client, livedata_topic, &livedata).await {
+                                warn!("Failed to publish robotdata to livedata topic: {}", e);
+                            } else {
+                                info!("Published robotdata to livedata topic");
+                            }
+                            
                             let response = json!({
                                 "status": "success",
                                 "message": format!("Successfully processed {} nodes/relations", count),
@@ -311,6 +329,24 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                 match create_new_energy_nodes(add_data, &write_conn).await {
                     Ok(count) => {
                         if count > 0 {
+                            
+                            let livedata_topic = "rust/response/livedata";
+                            let livedata = json!({
+                                "type": "energydata",
+                                "source": "mqtt",
+                                "client_id": requesting_client_id,
+                                "timestamp": chrono::Utc::now().to_rfc3339(),
+                                "count": count,
+                                "data": add_data
+                            });
+                            
+                            
+                            if let Err(e) = publish_result(client, livedata_topic, &livedata).await {
+                                warn!("Failed to publish energydata to livedata topic: {}", e);
+                            } else {
+                                info!("Published energydata to livedata topic");
+                            }
+                            
                             let response = json!({
                                 "status": "success",
                                 "message": format!("Successfully processed {} energy nodes", count),
@@ -345,6 +381,24 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                 match create_new_sensor_nodes(add_data, &write_conn).await {
                     Ok(count) => {
                         if count > 0 {
+                            
+                            let livedata_topic = "rust/response/livedata";
+                            let livedata = json!({
+                                "type": "sensordata",
+                                "source": "mqtt",
+                                "client_id": requesting_client_id,
+                                "timestamp": chrono::Utc::now().to_rfc3339(),
+                                "count": count,
+                                "data": add_data
+                            });
+                            
+                            
+                            if let Err(e) = publish_result(client, livedata_topic, &livedata).await {
+                                warn!("Failed to publish sensordata to livedata topic: {}", e);
+                            } else {
+                                info!("Published sensordata to livedata topic");
+                            }
+                            
                             let response = json!({
                                 "status": "success",
                                 "message": format!("Successfully processed {} sensor nodes", count),
