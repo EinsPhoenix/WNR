@@ -6,51 +6,47 @@ use chrono::{NaiveDate, NaiveTime};
 use std::time::Instant;
 
 use crate::db_operations::sharding::get_current_max_id;
+use crate::db_operations::cypher_queries::*;
 
 // Resets the database by deleting all nodes.
 // Input: &Graph - a reference to the Neo4j graph instance.
 // Returns: Result<bool, String> - true if successful, error message otherwise.
 pub async fn reset_database(graph: &Graph) -> Result<bool, String> {
-    
-    let delete_query = query(r#"
-        MATCH (n) DETACH DELETE n
-    "#);
-
-    match graph.execute(delete_query).await {
-        Ok(_) => {
-            log::info!("All nodes succesfully deleted");
-            Ok(true)
-        },
+   
+    let delete_query1 = query(DELETE_NODE_ADMIN_SHARD_1);
+    match graph.execute(delete_query1).await {
+        Ok(_) => log::info!("Shard 1 nodes successfully deleted"),
         Err(e) => {
-            let error_msg = format!("There was a misstake: {}", e);
+            let error_msg = format!("Error deleting shard 1 nodes: {}", e);
             error!("{}", error_msg);
             return Err(error_msg);
         }
     }
-}
-
-// Removes the test database by stopping and dropping it.
-// Input: &Graph - a reference to the Neo4j graph instance.
-// Returns: Result<bool, String> - true if successful, error message otherwise.
-pub async fn remove_test_database(graph: &Graph) -> Result<bool, String> {
     
-    let delete_query = query(r#"
-        STOP DATABASE Test
-        DROP DATABASE Test.alias
-        DROP DATABASE Test
-    "#);
-
-    match graph.execute(delete_query).await {
-        Ok(_) => {
-            log::info!("Test database successfully deleted");
-            Ok(true)
-        },
+   
+    let delete_query2 = query(DELETE_NODE_ADMIN_SHARD_2);
+    match graph.execute(delete_query2).await {
+        Ok(_) => log::info!("Shard 2 nodes successfully deleted"),
         Err(e) => {
-            let error_msg = format!("There was a misstake: {}", e);
+            let error_msg = format!("Error deleting shard 2 nodes: {}", e);
             error!("{}", error_msg);
             return Err(error_msg);
         }
     }
+    
+   
+    let delete_query3 = query(DELETE_NODE_ADMIN_SHARD_3);
+    match graph.execute(delete_query3).await {
+        Ok(_) => log::info!("Shard 3 nodes successfully deleted"),
+        Err(e) => {
+            let error_msg = format!("Error deleting shard 3 nodes: {}", e);
+            error!("{}", error_msg);
+            return Err(error_msg);
+        }
+    }
+    
+    log::info!("All nodes successfully deleted from all shards");
+    Ok(true)
 }
 
 // Generates a large amount of data and inserts it into multiple database shards efficiently.
@@ -101,16 +97,7 @@ pub async fn generate_data_fast(graph: &Graph, count: usize) -> Result<usize, St
                             temperature, humidity, timestamp, energy_consume, energy_cost));
         } 
 
-        let shard1_query = r#"
-       USE fabric.dbshard1
-    UNWIND $batch AS row
-    CREATE (id_node:Id {value: row[0]})
-    CREATE (uuid_node:Uuid {value: row[1]})
-    MERGE (color_node:Color {value: row[2]})
-    MERGE (id_node)-[:HAS_UUID]->(uuid_node)
-    MERGE (id_node)-[:HAS_COLOR]->(color_node)
-    RETURN id_node.value AS nodeId
-        "#;
+        let shard1_query = ADD_NEW_NODE_ADMIN_SHARD_1;
         
         let batch_params = batch_data.iter()
             .map(|(id, uuid, color, _, _, _, _, _)| {
@@ -140,18 +127,7 @@ pub async fn generate_data_fast(graph: &Graph, count: usize) -> Result<usize, St
                 }
             }
         
-        let shard2_query = r#"
-            USE fabric.dbshard2
-            UNWIND $batch AS row
-            MERGE (id_node:Id {value: row[0]})
-            CREATE (sensor_data_node:SensorData {timestamp: datetime()})
-            MERGE (temp_node:Temperature {value: row[1]})
-            MERGE (hum_node:Humidity {value: row[2]})
-            MERGE (id_node)-[:HAS_SENSOR_DATA]->(sensor_data_node)
-            MERGE (sensor_data_node)-[:MEASURES_TEMPERATURE]->(temp_node)
-            MERGE (sensor_data_node)-[:MEASURES_HUMIDITY]->(hum_node)
-            RETURN id_node.value AS nodeId
-        "#;
+        let shard2_query = ADD_NEW_NODE_ADMIN_SHARD_2;
        
         let batch_params = batch_data.iter()
             .map(|(id, _, _, temp, hum, _, _, _)| {
@@ -181,18 +157,7 @@ pub async fn generate_data_fast(graph: &Graph, count: usize) -> Result<usize, St
                 }
             }
         
-        let shard3_query = r#"
-        USE fabric.dbshard3
-        UNWIND $batch AS row
-        MERGE (id:Id {value: row[0]})
-        MERGE (ts:Timestamp {value: row[1]})
-        CREATE (econsume:EnergyConsumption {value: row[2]})
-        CREATE (ecost:EnergyCost {value: row[3]})
-        MERGE (id)-[:HAS_TIMESTAMP]->(ts)
-        MERGE (id)-[:HAS_ENERGY_CONSUMPTION]->(econsume)
-        MERGE (econsume)-[:HAS_ENERGY_COST]->(ecost)
-        RETURN id.value AS nodeId
-        "#;
+        let shard3_query = ADD_NEW_NODE_ADMIN_SHARD_3;
         
         let batch_params = batch_data.iter()
             .map(|(id, _, _, _, _, timestamp, energy_consume, energy_cost)| {

@@ -27,7 +27,7 @@ pub async fn router(command: &str, db_handler: Arc<db::DatabaseCluster>) -> Resu
         "generate" => {
             info!("Generating data...");
             let db = db_handler.get_system_db().await;
-            match generate_data_fast(&db, 10000).await {
+            match generate_data_fast(&db, 1000).await {
                 Ok(count) => {
                     info!("Generated {} records successfully", count);
                     Ok(true)

@@ -262,3 +262,63 @@ pub const GET_NODES_WITH_COLOR: &str = r#"
     OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
     RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
 "#;
+
+pub const RELATIONSHIP_QUERY: &str = r#"
+    USE fabric.{}
+    MATCH p=()-[]->() 
+    WITH p
+    {}  
+    WITH collect(p) AS paths
+    RETURN apoc.convert.toJson(paths) AS json_result
+"#;
+
+// Admin queries
+
+pub const ADD_NEW_NODE_ADMIN_SHARD_1: &str = r#"
+       USE fabric.dbshard1
+    UNWIND $batch AS row
+    CREATE (id_node:Id {value: row[0]})
+    CREATE (uuid_node:Uuid {value: row[1]})
+    MERGE (color_node:Color {value: row[2]})
+    MERGE (id_node)-[:HAS_UUID]->(uuid_node)
+    MERGE (id_node)-[:HAS_COLOR]->(color_node)
+    RETURN id_node.value AS nodeId
+        "#;
+
+pub const ADD_NEW_NODE_ADMIN_SHARD_2: &str = r#"
+            USE fabric.dbshard2
+            UNWIND $batch AS row
+            MERGE (id_node:Id {value: row[0]})
+            CREATE (sensor_data_node:SensorData {timestamp: datetime()})
+            MERGE (temp_node:Temperature {value: row[1]})
+            MERGE (hum_node:Humidity {value: row[2]})
+            MERGE (id_node)-[:HAS_SENSOR_DATA]->(sensor_data_node)
+            MERGE (sensor_data_node)-[:MEASURES_TEMPERATURE]->(temp_node)
+            MERGE (sensor_data_node)-[:MEASURES_HUMIDITY]->(hum_node)
+            RETURN id_node.value AS nodeId
+        "#;
+
+pub const ADD_NEW_NODE_ADMIN_SHARD_3: &str = r#"
+        USE fabric.dbshard3
+        UNWIND $batch AS row
+        MERGE (id:Id {value: row[0]})
+        MERGE (ts:Timestamp {value: row[1]})
+        CREATE (econsume:EnergyConsumption {value: row[2]})
+        CREATE (ecost:EnergyCost {value: row[3]})
+        MERGE (id)-[:HAS_TIMESTAMP]->(ts)
+        MERGE (id)-[:HAS_ENERGY_CONSUMPTION]->(econsume)
+        MERGE (econsume)-[:HAS_ENERGY_COST]->(ecost)
+        RETURN id.value AS nodeId
+        "#;
+
+pub const DELETE_NODE_ADMIN_SHARD_1: &str = r#"
+    USE fabric.dbshard1
+    MATCH (n) DETACH DELETE n"#;
+
+pub const DELETE_NODE_ADMIN_SHARD_2: &str = r#"
+    USE fabric.dbshard2
+    MATCH (n) DETACH DELETE n"#;
+
+pub const DELETE_NODE_ADMIN_SHARD_3: &str = r#"
+    USE fabric.dbshard3
+    MATCH (n) DETACH DELETE n"#;

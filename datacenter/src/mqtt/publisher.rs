@@ -58,7 +58,7 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
     let mut current_chunk = Vec::new();
     let mut current_chunk_size_estimate = 0; 
 
-    for (index, item) in array_payload.into_iter().enumerate() {
+    for item in array_payload.into_iter().enumerate() {
         let item_json = serde_json::to_string(&item)?;
         let item_size = item_json.len();
 

@@ -1,6 +1,8 @@
+#![allow(unused_assignments)]
 use neo4rs::{Graph, query};
 use log::{error, info};
 use serde_json::Value;
+use crate::db_operations::cypher_queries::*;
 
 // Exports all relationships from multiple database shards as JSON, with an optional limit on the number of paths.
 // Input: &Graph - a reference to the Neo4j graph instance, limit - optional maximum number of paths to retrieve.
@@ -16,21 +18,17 @@ pub async fn export_all_with_relationships(graph: &Graph, limit: Option<usize>) 
     // Input: &Graph - a reference to the Neo4j graph instance, shard_name - the name of the shard, remaining_limit - optional limit for paths.
     // Returns: Result<Value, String> - JSON array of paths or an error message.
     async fn get_shard_paths(graph: &Graph, shard_name: &str, remaining_limit: Option<usize>) -> Result<Value, String> {
-      
+
         let limit_clause = match remaining_limit {
             Some(l) => format!("LIMIT {}", l),
             None => "".to_string()
         };
-        
-        let query_str = format!(r#"
-            USE fabric.{}
-            MATCH p=()-[]->() 
-            WITH p
-            {}  
-            WITH collect(p) AS paths
-            RETURN apoc.convert.toJson(paths) AS json_result
-        "#, shard_name, limit_clause);
-        
+
+
+        let query_str = RELATIONSHIP_QUERY
+            .replacen("{}", shard_name, 1) 
+            .replacen("{}", &limit_clause, 1); 
+
         let query = query(&query_str);
         
         match graph.execute(query).await {
