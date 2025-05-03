@@ -1,14 +1,21 @@
-use log::info;
+use log::{info, warn};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
+use rumqttc::AsyncClient;
 
 use crate::db;
 use crate::db_operations::sharding::*;
 use crate::command_handler::router;
+use crate::mqtt::publisher::publish_result;
 
-pub async fn process_json(json: &Value, db_handler: Arc<db::DatabaseCluster>, socket: &mut TcpStream) -> Result<(), String> {
+pub async fn process_json(
+    json: &Value, 
+    db_handler: Arc<db::DatabaseCluster>, 
+    socket: &mut TcpStream,
+    mqtt_client: Option<&Arc<AsyncClient>>
+) -> Result<(), String> {
     info!("Processing JSON: {}", json);
     
     if let Some(message_type) = json.get("type") {
@@ -24,17 +31,17 @@ pub async fn process_json(json: &Value, db_handler: Arc<db::DatabaseCluster>, so
                 Ok(())
             },
             Some("robotdata") => {
-                let result = handle_robotdata(json, db_handler).await;
+                let result = handle_robotdata(json, db_handler, mqtt_client).await;
                 send_response(socket, &result).await?;
                 Ok(())
             },
             Some("energydata") => {
-                let result = handle_energydata(json, db_handler).await;
+                let result = handle_energydata(json, db_handler, mqtt_client).await;
                 send_response(socket, &result).await?;
                 Ok(())
             },
             Some("sensordata") => {
-                let result = handle_sensordata(json, db_handler).await;
+                let result = handle_sensordata(json, db_handler, mqtt_client).await;
                 send_response(socket, &result).await?;
                 Ok(())
             },
@@ -78,13 +85,40 @@ async fn handle_command(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> R
     }
 }
 
-async fn handle_robotdata(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+async fn handle_robotdata(
+    json: &Value, 
+    db_handler: Arc<db::DatabaseCluster>,
+    mqtt_client: Option<&Arc<AsyncClient>>
+) -> Result<String, String> {
     if let Some(data) = json.get("data") {
         let primary_conn = db_handler.get_main_db().await;
       
         match create_new_nodes(data, &primary_conn).await {
-            Ok(0) => Ok("No new nodes created (data might be empty or nodes already exist)".to_string()),
-            Ok(count) => Ok(format!("{} nodes created successfully", count)), 
+            Ok(0) => {
+                Ok("No new nodes created (data might be empty or nodes already exist)".to_string())
+            },
+            Ok(count) => {
+              
+                if let Some(client) = mqtt_client {
+                    let response_topic = "rust/response/livedata";
+                    let livedata = json!({
+                        "type": "robotdata",
+                        "source": "tcp",
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                        "count": count,
+                        "data": data
+                    });
+
+                  
+                    if let Err(e) = publish_result(client, response_topic, &livedata).await {
+                        warn!("Failed to publish robotdata to livedata topic: {}", e);
+                    } else {
+                        info!("Published robotdata to livedata topic");
+                    }
+                }
+                
+                Ok(format!("{} nodes created successfully", count))
+            }, 
             Err(error_msg) => Err(error_msg),
         }
     } else {
@@ -92,13 +126,40 @@ async fn handle_robotdata(json: &Value, db_handler: Arc<db::DatabaseCluster>) ->
     }
 }
 
-async fn handle_energydata(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+async fn handle_energydata(
+    json: &Value, 
+    db_handler: Arc<db::DatabaseCluster>,
+    mqtt_client: Option<&Arc<AsyncClient>>
+) -> Result<String, String> {
     if let Some(data) = json.get("data") {
         let primary_conn = db_handler.get_main_db().await;
-        // Call the function to handle energy data
+        
         match create_new_energy_nodes(data, &primary_conn).await {
-            Ok(0) => Ok("No new nodes created (data might be empty or nodes already exist)".to_string()),
-            Ok(count) => Ok(format!("{} nodes created successfully", count)), 
+            Ok(0) => {
+                Ok("No new nodes created (data might be empty or nodes already exist)".to_string())
+            },
+            Ok(count) => {
+               
+                if let Some(client) = mqtt_client {
+                    let response_topic = "rust/response/livedata";
+                    let livedata = json!({
+                        "type": "energydata",
+                        "source": "tcp",
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                        "count": count,
+                        "data": data
+                    });
+
+                  
+                    if let Err(e) = publish_result(client, response_topic, &livedata).await {
+                        warn!("Failed to publish energydata to livedata topic: {}", e);
+                    } else {
+                        info!("Published energydata to livedata topic");
+                    }
+                }
+                
+                Ok(format!("{} nodes created successfully", count))
+            }, 
             Err(error_msg) => Err(error_msg),
         }
     } else {
@@ -106,13 +167,40 @@ async fn handle_energydata(json: &Value, db_handler: Arc<db::DatabaseCluster>) -
     }
 }
 
-async fn handle_sensordata(json: &Value, db_handler: Arc<db::DatabaseCluster>) -> Result<String, String> {
+async fn handle_sensordata(
+    json: &Value, 
+    db_handler: Arc<db::DatabaseCluster>,
+    mqtt_client: Option<&Arc<AsyncClient>>
+) -> Result<String, String> {
     if let Some(data) = json.get("data") {
         let primary_conn = db_handler.get_main_db().await;
-        // Call the function to handle sensor data
+        
         match create_new_sensor_nodes(data, &primary_conn).await {
-            Ok(0) => Ok("No new nodes created (data might be empty or nodes already exist)".to_string()),
-            Ok(count) => Ok(format!("{} nodes created successfully", count)), 
+            Ok(0) => {
+                Ok("No new nodes created (data might be empty or nodes already exist)".to_string())
+            },
+            Ok(count) => {
+              
+                if let Some(client) = mqtt_client {
+                    let response_topic = "rust/response/livedata";
+                    let livedata = json!({
+                        "type": "sensordata",
+                        "source": "tcp",
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                        "count": count,
+                        "data": data
+                    });
+
+                    // Publish but don't fail if MQTT publishing fails
+                    if let Err(e) = publish_result(client, response_topic, &livedata).await {
+                        warn!("Failed to publish sensordata to livedata topic: {}", e);
+                    } else {
+                        info!("Published sensordata to livedata topic");
+                    }
+                }
+                
+                Ok(format!("{} nodes created successfully", count))
+            },
             Err(error_msg) => Err(error_msg),
         }
     } else {

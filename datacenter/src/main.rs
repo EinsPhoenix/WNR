@@ -6,6 +6,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::io;
 use serde_json::{json, Value};
 use std::sync::Arc;
+use rumqttc::AsyncClient; // Import AsyncClient from the rumqttc crate
 use fern::Dispatch;
 use chrono::Local;
 use std::thread;
@@ -47,7 +48,20 @@ async fn main() -> io::Result<()> {
         io::Error::new(io::ErrorKind::Other, "Database connection failed")
     })?;
 
+    // Create a shared MQTT client that can be used by both the MQTT service and TCP handlers
+    let mqtt_client = match mqtt::connection::create_mqtt_client().await {
+        Ok(client) => {
+            info!("Created shared MQTT client successfully");
+            Some(Arc::clone(&client))
+        },
+        Err(e) => {
+            error!("Failed to create shared MQTT client: {:?}", e);
+            None
+        }
+    };
+
     let db_mqtt_handler_clone = Arc::clone(&db_handler);
+    let mqtt_client_clone = mqtt_client.clone();
 
     thread::spawn(move || {
         info!("Spawning dedicated thread for MQTT client...");
@@ -61,7 +75,7 @@ async fn main() -> io::Result<()> {
 
         rt.block_on(async move {
             info!("MQTT client thread started. Running start_mqtt_client...");
-            if let Err(e) = mqtt::start_mqtt_client(db_mqtt_handler_clone).await {
+            if let Err(e) = mqtt::connection::start_mqtt_client(db_mqtt_handler_clone, mqtt_client_clone).await {
                 error!("MQTT client encountered an error: {:?}", e);
             }
             info!("MQTT client thread finished.");
@@ -77,10 +91,11 @@ async fn main() -> io::Result<()> {
             Ok((socket, addr)) => {
                 info!("New connection from: {}", addr);
                 let password_clone = password.clone();
-
                 let db_handler_clone = Arc::clone(&db_handler);
+                let mqtt_client_clone = mqtt_client.clone();
+                
                 tokio::spawn(async move {
-                    if let Err(e) = handle_client(socket, password_clone, db_handler_clone).await {
+                    if let Err(e) = handle_client(socket, password_clone, db_handler_clone, mqtt_client_clone).await {
                         error!("Error handling client {}: {:?}", addr, e);
                     }
                 });
@@ -93,7 +108,8 @@ async fn main() -> io::Result<()> {
 async fn handle_client(
     mut socket: TcpStream,
     correct_password: String,
-    db_handler: Arc<db::DatabaseCluster>
+    db_handler: Arc<db::DatabaseCluster>,
+    mqtt_client: Option<Arc<AsyncClient>>
 ) -> io::Result<()> {
     if !auth::authenticate_client(&mut socket, &correct_password).await? {
         return Ok(());
@@ -102,7 +118,7 @@ async fn handle_client(
     loop {
         match receive_json(&mut socket).await {
             Ok(Some(json)) => {
-                if let Err(e) = ip_payload_handler::process_json(&json, Arc::clone(&db_handler), &mut socket).await {
+                if let Err(e) = ip_payload_handler::process_json(&json, Arc::clone(&db_handler), &mut socket, mqtt_client.as_ref()).await {
                     error!("Error processing JSON: {}", e);
                 }
             },

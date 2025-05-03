@@ -11,7 +11,7 @@ use chrono;
 use crate::db;
 use super::request_processor::process_request; 
 
-// Function to establish connection with retry logic
+
 async fn connect_with_retry(options: MqttOptions, buffer_size: usize) -> Result<(Arc<AsyncClient>, EventLoop), Box<dyn Error>> {
     let mut attempts = 0;
     let max_attempts = 5; 
@@ -47,15 +47,15 @@ async fn connect_with_retry(options: MqttOptions, buffer_size: usize) -> Result<
             }
         }).await {
             Ok(Ok((client, final_eventloop))) => return Ok((client, final_eventloop)), 
-            Ok(Err(e)) => { // Connection failed 
+            Ok(Err(e)) => { 
                  error!("MQTT connection attempt {} failed: {}", attempts, e);
                  if attempts >= max_attempts {
-                     return Err(e); // Max attempts reached
+                     return Err(e); 
                  }
                  info!("Retrying connection in {:?}...", retry_delay);
                  time::sleep(retry_delay).await;
             }
-            Err(_) => { // Timeout
+            Err(_) => { 
                 error!("⌛ MQTT connection attempt {} timed out after {:?}.", attempts, connect_timeout);
                 if attempts >= max_attempts {
                     return Err("Connection timed out after multiple retries".into());
@@ -67,10 +67,9 @@ async fn connect_with_retry(options: MqttOptions, buffer_size: usize) -> Result<
     }
 }
 
-
-pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(), Box<dyn Error>> {
-    let client_id = format!("rust-mqtt-server-{}", Uuid::new_v4());
-    info!("Initializing MQTT client with ID: {}", client_id);
+pub async fn create_mqtt_client() -> Result<Arc<AsyncClient>, Box<dyn Error>> {
+    let client_id = format!("rust-mqtt-publisher-{}", Uuid::new_v4());
+    info!("Initializing MQTT publisher client with ID: {}", client_id);
 
     let broker_host = env::var("MQTT_BROKER").unwrap_or_else(|_| "mosquitto-broker".into());
     let broker_port = env::var("MQTT_PORT").unwrap_or_else(|_| "1883".into()).parse::<u16>().unwrap_or(1883);
@@ -82,14 +81,63 @@ pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(
         env::var("MQTT_USER").unwrap_or_else(|_| "admin".into()),
         env::var("MQTT_PASSWORD").unwrap_or_else(|_| "admin".into())
     );
+
+    let (client, mut eventloop) = AsyncClient::new(mqtt_options, 10);
+    let client_arc = Arc::new(client);
     
+    
+    let eventloop_client = client_arc.clone();
+    
+    
+    tokio::spawn(async move {
+        info!("Started eventloop processor for publisher client {}", client_id);
+        loop {
+            match eventloop.poll().await {
+                Ok(Event::Incoming(Incoming::Disconnect)) => {
+                    warn!("Publisher MQTT client disconnected. Trying to reconnect...");
+                    time::sleep(Duration::from_secs(5)).await;
+                },
+                Ok(_) => {}, 
+                Err(e) => {
+                    error!("Publisher MQTT eventloop error: {}. Continuing...", e);
+                    time::sleep(Duration::from_secs(2)).await;
+                }
+            }
+        }
+    });
+    
+    
+    let timeout = Duration::from_secs(10);
+    time::sleep(timeout).await;
+    
+    Ok(client_arc)
+}
+
+
+pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>, existing_client: Option<Arc<AsyncClient>>) -> Result<(), Box<dyn Error>> {
+    let client_id = format!("rust-mqtt-server-{}", Uuid::new_v4());
+    info!("Starting MQTT client service with ID: {}", client_id);
+
+    
+    let broker_host = env::var("MQTT_BROKER").unwrap_or_else(|_| "mosquitto-broker".into());
+    let broker_port = env::var("MQTT_PORT").unwrap_or_else(|_| "1883".into()).parse::<u16>().unwrap_or(1883);
+    
+    let mut mqtt_options = MqttOptions::new(&client_id, broker_host, broker_port);
+    mqtt_options.set_keep_alive(Duration::from_secs(60));
+    mqtt_options.set_clean_session(true);
+    mqtt_options.set_credentials(
+        env::var("MQTT_USER").unwrap_or_else(|_| "admin".into()),
+        env::var("MQTT_PASSWORD").unwrap_or_else(|_| "admin".into())
+    );
+    
+    let (client, mut eventloop) = connect_with_retry(mqtt_options, 10).await?;
 
   
-    let (client, mut eventloop) = connect_with_retry(mqtt_options, 10).await?; 
-
+    let publish_client = client.clone();
+    
     info!("🚀 MQTT Client Connected. Starting service...");
 
-    // Subscribe request topic
+    
     let subscribe_topic = "rust/request";
     match client.subscribe(subscribe_topic, QoS::AtLeastOnce).await {
          Ok(_) => info!("🔔 Subscribed successfully to: {}", subscribe_topic),
@@ -99,9 +147,8 @@ pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(
          }
     }
 
-
-    // Heartbeat Task
-    let heartbeat_client = client.clone();
+    
+    let heartbeat_client = publish_client.clone();
     let heartbeat_client_id = client_id.clone();
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(60));
@@ -135,14 +182,14 @@ pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(
         }
     });
 
-    // Main processing messages
+    
     info!("👂 Waiting for requests on {}...", subscribe_topic);
     loop {
         match eventloop.poll().await {
             Ok(Event::Incoming(Incoming::Publish(msg))) => {
                 if msg.topic == subscribe_topic {
                     info!("Received message on {}", subscribe_topic);
-                    let process_client = client.clone();
+                    let process_client = publish_client.clone();
                     let payload = msg.payload.to_vec(); 
                     let db_handler_clone = Arc::clone(&db_handler);
 
@@ -185,5 +232,4 @@ pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(
             }
         }
     }
-    
 }
