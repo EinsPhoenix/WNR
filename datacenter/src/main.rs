@@ -61,7 +61,6 @@ async fn main() -> io::Result<()> {
     };
 
     let db_mqtt_handler_clone = Arc::clone(&db_handler);
-    let mqtt_client_clone = mqtt_client.clone();
 
     thread::spawn(move || {
         info!("Spawning dedicated thread for MQTT client...");
@@ -75,7 +74,7 @@ async fn main() -> io::Result<()> {
 
         rt.block_on(async move {
             info!("MQTT client thread started. Running start_mqtt_client...");
-            if let Err(e) = mqtt::connection::start_mqtt_client(db_mqtt_handler_clone, mqtt_client_clone).await {
+            if let Err(e) = mqtt::connection::start_mqtt_client(db_mqtt_handler_clone).await {
                 error!("MQTT client encountered an error: {:?}", e);
             }
             info!("MQTT client thread finished.");

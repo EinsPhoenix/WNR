@@ -219,10 +219,7 @@ pub const GET_NODES_IN_TIME_RANGE: &str = r#"
     USE fabric.dbshard3
     MATCH (id_node:Id)-[:RECORDED_AT]->(time_node:Timestamp)
     WHERE time_node.value >= $start AND time_node.value <= $end
-    WITH id_node
-    USE fabric.dbshard1
-    MATCH (id1:Id {value: id_node.value})-[:HAS_UUID]->(uuid_node:Uuid)
-    RETURN uuid_node.value AS uuid
+    RETURN id_node.value AS uuid
 "#;
 
 pub const GET_NODES_WITH_TEMPERATURE_OR_HUMIDITY: &str = r#"
@@ -231,29 +228,20 @@ pub const GET_NODES_WITH_TEMPERATURE_OR_HUMIDITY: &str = r#"
     WHERE 
         EXISTS((sensor_data_node)-[:MEASURES_TEMPERATURE]->(:Temperature {value: $temp})) OR
         EXISTS((sensor_data_node)-[:MEASURES_HUMIDITY]->(:Humidity {value: $humidity}))
-    WITH id_node
-    USE fabric.dbshard1
-    MATCH (id1:Id {value: id_node.value})-[:HAS_UUID]->(uuid_node:Uuid)
-    RETURN uuid_node.value AS uuid
+    RETURN id_node.value AS uuid
 "#;
 
 pub const GET_NODES_WITH_ENERGY_COST: &str = r#"
     USE fabric.dbshard3
     MATCH (id_node:Id)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
     MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost {value: $energy_cost})
-    WITH id_node
-    USE fabric.dbshard1
-    MATCH (id1:Id {value: id_node.value})-[:HAS_UUID]->(uuid_node:Uuid)
-    RETURN uuid_node.value AS uuid
+    RETURN id_node.value AS uuid
 "#;
 
 pub const GET_NODES_WITH_ENERGY_CONSUME: &str = r#"
     USE fabric.dbshard3
     MATCH (id_node:Id)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume {value: $energy_consume})
-    WITH id_node
-    USE fabric.dbshard1
-    MATCH (id1:Id {value: id_node.value})-[:HAS_UUID]->(uuid_node:Uuid)
-    RETURN uuid_node.value AS uuid
+    RETURN id_node.value AS uuid
 "#;
 
 pub const GET_NODES_WITH_COLOR: &str = r#"

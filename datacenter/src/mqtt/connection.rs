@@ -86,7 +86,6 @@ pub async fn create_mqtt_client() -> Result<Arc<AsyncClient>, Box<dyn Error>> {
     let client_arc = Arc::new(client);
     
     
-    let eventloop_client = client_arc.clone();
     
     
     tokio::spawn(async move {
@@ -114,7 +113,7 @@ pub async fn create_mqtt_client() -> Result<Arc<AsyncClient>, Box<dyn Error>> {
 }
 
 
-pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>, existing_client: Option<Arc<AsyncClient>>) -> Result<(), Box<dyn Error>> {
+pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(), Box<dyn Error>> {
     let client_id = format!("rust-mqtt-server-{}", Uuid::new_v4());
     info!("Starting MQTT client service with ID: {}", client_id);
 
