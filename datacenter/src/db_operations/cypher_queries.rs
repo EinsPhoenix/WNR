@@ -191,8 +191,8 @@ pub const GET_NEWEST_SENSORDATA: &str = r#"
 pub const GET_NEWEST_ENERGYDATA: &str = r#"
     USE fabric.dbshard3
     MATCH (time_node:Timestamp)
-    OPTIONAL MATCH (id_node:Id)-[:RECORDED_AT]->(time_node)
-    OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
+    OPTIONAL MATCH (id_node:Id)-[:HAS_TIMESTAMP]->(time_node)
+    OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
     OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
     RETURN id_node.value AS id, {
         timestamp: time_node.value,
