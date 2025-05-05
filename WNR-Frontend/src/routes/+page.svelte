@@ -258,11 +258,17 @@
     }
 
     .box-title {
-        font-weight: bold;
+        font-weight: bolder;
         font-size: 35px;
         display: flex;
         align-items: center;
         justify-content: start;
+        /* color: #fb53ac; */
+        background: #FB53AC;
+        background: linear-gradient(to top, #FB53AC 11%, #FFC6FF 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        /* text-shadow: 0px 0px 3px #fff; */
     }
 
     .border {
@@ -329,6 +335,37 @@
         grid-template-columns: repeat(22, 1fr);
         grid-template-rows: repeat(22, 1fr);
         margin-left: var(--navbar-width);
+
+        --s: 200px;
+        --c1: rgba(185, 185, 185, 0.2);
+        --c2: rgba(220, 220, 220, 0.2);
+        --c3: rgba(250, 250, 250, 0.2);
+
+        background: conic-gradient(
+                from 75deg,
+                var(--c1) 15deg,
+                var(--c2) 0 30deg,
+                #0000 0 180deg,
+                var(--c2) 0 195deg,
+                var(--c1) 0 210deg,
+                #0000 0
+            )
+            calc(0.5 * var(--s)) calc(0.5 * var(--s) / 0.577),
+            conic-gradient(
+                var(--c1) 30deg,
+                var(--c3) 0 75deg,
+                var(--c1) 0 90deg,
+                var(--c2) 0 105deg,
+                var(--c3) 0 150deg,
+                var(--c2) 0 180deg,
+                var(--c3) 0 210deg,
+                var(--c1) 0 256deg,
+                var(--c2) 0 270deg,
+                var(--c1) 0 286deg,
+                var(--c2) 0 331deg,
+                var(--c3) 0
+            );
+        background-size: var(--s) calc(var(--s) / 0.577);
     }
 
     .box {
@@ -336,7 +373,7 @@
         padding: 20px;
         text-align: center;
         background-color: var(--pastel-white-color);
-        border-radius: 8px;
+        border-radius: 6px;
         transition: transform 0.3s ease-in-out;
     }
 
@@ -349,7 +386,7 @@
         grid-column: 2 / span 20;
 
         padding: 0;
-        background-color: rgb(26, 26, 26);
+        background-color: rgb(26, 26, 26, 0.9);
         color: var(--pastel-pink-color);
     }
 
@@ -357,7 +394,7 @@
         grid-row: 4 / span 4;
         grid-column: 2 / span 12;
 
-        background-color: rgb(26, 26, 26);
+        background-color: rgb(26, 26, 26, 0.9);
         color: var(--pastel-pink-color);
     }
 
@@ -365,7 +402,7 @@
         grid-row: 8 / span 8;
         grid-column: 2 / span 12;
 
-        background-color: rgb(26, 26, 26);
+        background-color: rgb(26, 26, 26, 0.9);
         color: var(--pastel-pink-color);
     }
 
@@ -373,7 +410,7 @@
         grid-row: 10 / span 6;
         grid-column: 14 / span 8;
 
-        background-color: rgb(26, 26, 26);
+        background-color: rgb(26, 26, 26, 0.9);
         color: var(--pastel-pink-color);
     }
 
@@ -381,7 +418,7 @@
         grid-row: 4 / span 6;
         grid-column: 14 / span 8;
 
-        background-color: rgb(26, 26, 26);
+        background-color: rgb(26, 26, 26, 0.9);
         color: var(--pastel-pink-color);
     }
 

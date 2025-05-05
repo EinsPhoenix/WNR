@@ -80,7 +80,7 @@
   
   <style>
     :root {
-      --navbar-width: 400px;
+      --navbar-width: 300px;
     }
 
     .item {
@@ -123,7 +123,7 @@
   
     .app-name {
       transform: rotate(-3deg);
-      width: 300px;
+      width: 240px;
       height: auto;
     }
   
