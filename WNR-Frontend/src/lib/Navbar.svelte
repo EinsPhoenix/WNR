@@ -32,49 +32,64 @@
           <img class="app-name" src="/wrnlogo2.png" alt="wnr logo" width="400" height="auto" />
       </div>
       <div class="group2">
-        <div class="item item1">
-          [12:03:58] Item #1450 produced 
-        </div>
-        <div class="item item2">
-          [12:03:57] Item #1449 produced  
-        </div>
-        <div class="item item3">
-          [12:03:56] Item #1448 produced  
-        </div>
-        <div class="item item4">
-          [12:03:55] Item #1447 produced  
-        </div>
+        <button class="btn">
+          <div class="item item1">
+            [12:03:58] Item #1450 produced 
+          </div>
+        </button>
+        <button class="btn">
+          <div class="item item2">
+            [12:03:58] Item #1449 produced 
+          </div>
+        </button>
+        <button class="btn">
+          <div class="item item3">
+            [12:03:58] Item #1448 produced 
+          </div>
+        </button>
+        <button class="btn">
+          <div class="item item4">
+            [12:03:58] Item #1447 produced 
+          </div>
+        </button>
       </div>
+
       <div class="group3">
-        <div class="nav-item">
+
+        <button class="nav-item btn">
           <div class="content">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M121 32C91.6 32 66 52 58.9 80.5L1.9 308.4C.6 313.5 0 318.7 0 323.9L0 416c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-92.1c0-5.2-.6-10.4-1.9-15.5l-57-227.9C446 52 420.4 32 391 32L121 32zm0 64l270 0 48 192-51.2 0c-12.1 0-23.2 6.8-28.6 17.7l-14.3 28.6c-5.4 10.8-16.5 17.7-28.6 17.7l-120.4 0c-12.1 0-23.2-6.8-28.6-17.7l-14.3-28.6c-5.4-10.8-16.5-17.7-28.6-17.7L73 288 121 96z"/></svg>
             Inbox
           </div>
-        </div>
-        <div class="nav-item">
+        </button>
+
+        <button class="nav-item btn">
           <div class="content">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M224 0c-17.7 0-32 14.3-32 32l0 19.2C119 66 64 130.6 64 208l0 18.8c0 47-17.3 92.4-48.5 127.6l-7.4 8.3c-8.4 9.4-10.4 22.9-5.3 34.4S19.4 416 32 416l384 0c12.6 0 24-7.4 29.2-18.9s3.1-25-5.3-34.4l-7.4-8.3C401.3 319.2 384 273.9 384 226.8l0-18.8c0-77.4-55-142-128-156.8L256 32c0-17.7-14.3-32-32-32zm45.3 493.3c12-12 18.7-28.3 18.7-45.3l-64 0-64 0c0 17 6.7 33.3 18.7 45.3s28.3 18.7 45.3 18.7s33.3-6.7 45.3-18.7z"/></svg>
             Alerts
           </div>
-        </div>
-        <div class="nav-item">
+        </button>
+
+        <button class="nav-item btn">
           <div class="content">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M32 32c17.7 0 32 14.3 32 32l0 336c0 8.8 7.2 16 16 16l400 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L80 480c-44.2 0-80-35.8-80-80L0 64C0 46.3 14.3 32 32 32zm96 96c0-17.7 14.3-32 32-32l192 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-192 0c-17.7 0-32-14.3-32-32zm32 64l128 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-128 0c-17.7 0-32-14.3-32-32s14.3-32 32-32zm0 96l256 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-256 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg>
             Reports
           </div>
-        </div>
+        </button>
+
       </div>
+
       <div class="group4">
-        <div class="user">
+        <button class="user btn">
           <div class="user-icon"> 
             MM
           </div>
           <div class="user-name">
             Max Mustermann
           </div>
-        </div>
+        </button>
       </div>
+
     </div>
   </nav>
   
@@ -83,18 +98,31 @@
       --navbar-width: 300px;
     }
 
-    .item {
-      background-color: var(--pastel-white-color);
+    .btn {
       width: 100%;
       padding: 1rem;
       margin-top: 0.5rem;
+      background-color: var(--pastel-white-color);
+      width: 100%;
       border-top: solid 2px;
       border-bottom: solid 2px;
     }
 
-    .item:hover {
+    .btn:hover {
+      cursor: pointer;
       background-color: rgb(194, 194, 194);
     }
+
+    /* .item {
+      background-color: var(--pastel-white-color);
+      width: 100%;
+      border-top: solid 2px;
+      border-bottom: solid 2px;
+    } */
+
+    /* .item:hover {
+      background-color: rgb(194, 194, 194);
+    } */
   
     .wnrlogo {
       background: none;
@@ -194,10 +222,11 @@
       justify-content: start;
       height: 100%;
       padding: 1rem;
+      background-color: white;
     }
 
     .user-icon {
-      border: solid 2px;
+      border: solid 1px black;
       border-radius: 25px;
       height: 50px;
       width: 50px;
@@ -205,7 +234,8 @@
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      background-color: var(--pastel-white-color);
+      background-color: var(--pastel-red-color);
+      color: white;
     }
 
     .user-name {

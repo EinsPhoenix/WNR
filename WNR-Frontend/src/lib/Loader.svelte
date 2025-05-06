@@ -22,7 +22,7 @@
         height: 500px;
         width: 500px;
         animation: rotate 1.5s ease-in-out infinite;
-        margin-left: 400px;
+        margin-left: 200px;
     }
 
     @keyframes rotate {

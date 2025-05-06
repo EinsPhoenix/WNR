@@ -14,6 +14,8 @@
         labels: ['01.05.', '02.05.', '03.05.', '04.05.', '05.05.', '06.05.', '07.05.'],
         datasets: [
         {
+            cubicInterpolationMode: 'monotone',
+            tension: 0.8,
             data: [12, 19, 3, 5, 2, 3, 9],
             backgroundColor: [
             'rgba(255, 198, 255, 1)',
@@ -52,6 +54,8 @@
     labels: ['01.05.', '02.05.', '03.05.', '04.05.', '05.05.', '06.05.', '07.05.'],
     datasets: [
       {
+        cubicInterpolationMode: 'monotone',
+        tension: 0.8,
         label: 'Temperature',
         data: [22, 21, 23, 24, 22, 25, 26],
         borderColor: '#FFADAD',
@@ -59,6 +63,8 @@
         yAxisID: 'y',
       },
       {
+        cubicInterpolationMode: 'monotone',
+        tension: 0.8,
         label: 'Humidity',
         data: [40, 42, 38, 35, 37, 39, 41],
         borderColor: '#A0C4FF',
@@ -122,7 +128,7 @@
     <div class="box box1">
 
         <div class="information-wrapper">
-            <div class="energy-cost">
+            <div class="energy-cost box-title2">
                 Energy costs
                 <div class="cost-number">
                     254 €
@@ -134,7 +140,7 @@
 
             <div class="border"></div>
 
-            <div class="speed">
+            <div class="speed box-title2">
                 Speed:
                 <div class="speed-number">
                     52/h
@@ -146,7 +152,7 @@
 
             <div class="border"></div>
 
-            <div class="fail">
+            <div class="fail box-title2">
                 Failures:
                 <div class="fail-number">
                     0
@@ -231,11 +237,12 @@
     }
 
     .color-number {
-        background-color: blue;
-        padding: 0.5rem;
+        background-color: var(--pastel-blue-color);
+        padding: 0.3rem;
         border-radius: 8px;
         width: 150px;
         font-weight: bold;
+        color: black;
     }
 
     .index {
@@ -273,6 +280,13 @@
         /* text-shadow: 0px 0px 3px #fff; */
     }
 
+    .box-title2 {
+        background: #FB53AC;
+        background: linear-gradient(to top, #FB53AC 11%, #FFC6FF 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
     .border {
         border: solid 1px var(--pastel-pink-color);
         height: 60%;
@@ -291,6 +305,9 @@
 
     .cost-percentage {
         color: var(--pastel-green-color);
+        background: var(--pastel-green-color);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
     .speed {
@@ -306,6 +323,9 @@
 
     .speed-percentage {
         color: var(--pastel-green-color);
+        background: var(--pastel-green-color);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
     .fail {
@@ -321,6 +341,9 @@
 
     .fail-percentage {
         color: var(--pastel-red-color);
+        background: var(--pastel-red-color);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
     .information-wrapper {
