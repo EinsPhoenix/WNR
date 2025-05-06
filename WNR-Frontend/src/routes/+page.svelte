@@ -40,6 +40,7 @@
 
     const options: ChartOptions<'line'> = {
         responsive: true,
+        aspectRatio: 2.1,
         plugins: {
             legend: {
                 display: false
@@ -69,6 +70,7 @@
 
   const options2: ChartOptions<'line'> = {
     responsive: true,
+    aspectRatio: 2.2,
     interaction: {
       mode: 'index',
       intersect: false,
