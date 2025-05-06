@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 import pandas as pd
 
 #Reading csv file with pandas and giving names to each column
