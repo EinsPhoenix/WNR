@@ -10,6 +10,36 @@
 
     // let currentDay = dayjs().format('DD.MM');
 
+    // SECTION API
+
+    const apiHome = "http://localhost:8000/";
+    let errorMessage = '';
+
+    async function loadData() {
+        try {
+            const response = await fetch(apiHome + "THIS IS JUST A PLACEHOLDER UWU", { // REPLACE THE MFUCKING PLACEHOLDERS. DONT FORGETI SPAGHETTI mhhhkay
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    data, // PLACEHOLDER
+                }),
+            });
+
+            const data = await response.json();
+            
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = 'An unknown error occurred. sowwy';
+            }
+        }
+    }
+
+    // END SECTION API
+
     let chart1: Chart<'line'>;
     let energycost: HTMLCanvasElement;
 
