@@ -2,7 +2,13 @@
     import { onMount } from "svelte";
     import Chart from 'chart.js/auto';
     import type { ChartData, ChartOptions } from 'chart.js';
+    import dayjs from 'dayjs';
+    import weekday from 'dayjs/plugin/weekday.js';
 
+    dayjs.extend(weekday)
+
+
+    // let currentDay = dayjs().format('DD.MM');
 
     let chart1: Chart<'line'>;
     let energycost: HTMLCanvasElement;
@@ -11,7 +17,7 @@
     let multiAxis: HTMLCanvasElement;
 
     const data: ChartData<'line'> = {
-        labels: ['01.05.', '02.05.', '03.05.', '04.05.', '05.05.', '06.05.', '07.05.'],
+        labels: [dayjs().subtract(6, 'day').format('DD.MM'), dayjs().subtract(5, 'day').format('DD.MM'), dayjs().subtract(4, 'day').format('DD.MM'), dayjs().subtract(3, 'day').format('DD.MM'), dayjs().subtract(2, 'day').format('DD.MM'), dayjs().subtract(1, 'day').format('DD.MM'), dayjs().subtract(0, 'day').format('DD.MM')],
         datasets: [
         {
             cubicInterpolationMode: 'monotone',
@@ -51,7 +57,7 @@
     };
 
     const data2: ChartData<'line'> = {
-    labels: ['01.05.', '02.05.', '03.05.', '04.05.', '05.05.', '06.05.', '07.05.'],
+    labels: [dayjs().subtract(6, 'day').format('DD.MM'), dayjs().subtract(5, 'day').format('DD.MM'), dayjs().subtract(4, 'day').format('DD.MM'), dayjs().subtract(3, 'day').format('DD.MM'), dayjs().subtract(2, 'day').format('DD.MM'), dayjs().subtract(1, 'day').format('DD.MM'), dayjs().subtract(0, 'day').format('DD.MM')],
     datasets: [
       {
         cubicInterpolationMode: 'monotone',

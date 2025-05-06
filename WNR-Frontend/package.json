@@ -23,6 +23,7 @@
 		"vite": "^6.2.5"
 	},
 	"dependencies": {
-		"chart.js": "^4.4.9"
+		"chart.js": "^4.4.9",
+		"dayjs": "^1.11.13"
 	}
 }
