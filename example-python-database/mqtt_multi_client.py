@@ -418,7 +418,7 @@ def run_test_client(client_name, request_type, params):
 
     request_handlers = {
         "uuid": lambda: client.send_request(
-            {"request": "uuid", "payload": [{"uuid": params.get("uuid", 1)}]}, "uuid"
+            {"request": "uuid", "data": [{"uuid": params.get("uuid", 1)}]}, "uuid"
         ),
         "all": lambda: client.send_request({"request": "all"}, "all"),
         "color": lambda: client.send_request(
@@ -497,7 +497,7 @@ def run_test_client_with_metrics(
 
     request_handlers = {
         "uuid": lambda: client.send_request(
-            {"request": "uuid", "payload": [{"uuid": params.get("uuid", 1)}]}, "uuid"
+            {"request": "uuid", "data": [{"uuid": params.get("uuid", 1)}]}, "uuid"
         ),
         "all": lambda: client.send_request({"request": "all"}, "all"),
         "color": lambda: client.send_request(

@@ -44,7 +44,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
         Some("uuid") => {
             info!("Processing UUID request for client: {}", requesting_client_id);
 
-            if let Some(payload_data) = json_value.get("payload") {
+            if let Some(payload_data) = json_value.get("data") {
                 if let Some(uuid_array) = payload_data.as_array() {
                     for uuid_obj in uuid_array {
                         if let Some(uuid) = uuid_obj.get("uuid").and_then(Value::as_i64) {

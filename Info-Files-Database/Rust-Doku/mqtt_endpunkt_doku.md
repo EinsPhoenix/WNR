@@ -13,7 +13,7 @@ All requests sent to the `datacenter` via MQTT on the `rust/requests` topic **mu
 {
   "client_id": "your_unique_client_identifier",
   "request": "the_specific_request_type",
-  "payload": { ... }
+  "data": { ... }
 }
 ```
 
@@ -40,7 +40,7 @@ The processor listens on the `rust/requests` topic. Responses are published to s
   {
     "client_id": "frontend_dashboard_1",
     "request": "uuid",
-    "payload": [
+    "data": [
       { "uuid": 12345 },
       { "uuid": 67890 }
     ]

@@ -200,7 +200,7 @@ This describes how any MQTT client should interact with the Rust server based on
     *   **Conditional Fields (depend on `request` value):**
         *   If `request` is `"uuid"`:
             *   `payload` (Array): An array of objects, where each object must contain a `"uuid"` (String) field.
-            *   Example: `{"client_id": "client1", "request": "uuid", "payload": [{"uuid": "abc"}, {"uuid": "def"}]}`
+            *   Example: `{"client_id": "client1", "request": "uuid", "data": [{"uuid": "abc"}, {"uuid": "def"}]}`
         *   If `request` is `"all"`: No additional fields needed.
             *   Example: `{"client_id": "client2", "request": "all"}`
         *   If `request` is `"color"`:
