@@ -1,7 +1,28 @@
-import tailwindcss from '@tailwindcss/vite';
-import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
+import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill';
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()]
+  plugins: [sveltekit()],
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: 'globalThis'
+      },
+      plugins: [
+        NodeGlobalsPolyfillPlugin({
+          buffer: true,
+          process: true
+        }),
+        NodeModulesPolyfillPlugin()
+      ]
+    }
+  },
+  resolve: {
+    alias: {
+      buffer: 'buffer',
+      process: 'process/browser'
+    }
+  }
 });

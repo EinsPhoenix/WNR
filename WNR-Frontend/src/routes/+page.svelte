@@ -1,93 +1,44 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import Chart from 'chart.js/auto';
-    import type { ChartData, ChartOptions } from 'chart.js';
-    import dayjs from 'dayjs';
-    import weekday from 'dayjs/plugin/weekday.js';
+  import { onMount, onDestroy } from "svelte";
+  import Chart from 'chart.js/auto';
+  import type { ChartData, ChartOptions } from 'chart.js';
+  import { BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
+  import dayjs from 'dayjs';
+  import weekday from 'dayjs/plugin/weekday.js';
+  import { writable } from "svelte/store";
+  import { browser } from "$app/environment";
 
-    dayjs.extend(weekday)
+  dayjs.extend(weekday);
+  Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
+  let chart1: Chart<'line'>;
+  let energycost: HTMLCanvasElement;
 
-    // let currentDay = dayjs().format('DD.MM');
+  let chart2: Chart<'line'>;
+  let multiAxis: HTMLCanvasElement;
 
-    // SECTION API
+  let chart3: Chart<'bar'>;
+  let barChart1: HTMLCanvasElement;
 
-    const apiHome = "http://localhost:8000/";
-    let errorMessage = '';
+  export const mqttData = writable<any>(null);
+  let client: any = null;
 
-    async function loadData() {
-        try {
-            const response = await fetch(apiHome + "THIS IS JUST A PLACEHOLDER UWU", { // REPLACE THE MFUCKING PLACEHOLDERS. DONT FORGETI SPAGHETTI mhhhkay
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    data, // PLACEHOLDER
-                }),
-            });
+  const data: ChartData<'line'> = {
+    labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
+    datasets: [{
+      cubicInterpolationMode: 'monotone',
+      tension: 0.8,
+      data: [12, 19, 3, 5, 2, 3, 9],
+      backgroundColor: Array(7).fill('rgba(255, 198, 255, 1)'),
+      borderColor: Array(7).fill('rgba(255, 198, 255, 1)'),
+      borderWidth: 3
+    }]
+  };
 
-            const data = await response.json();
-            
-        } catch (error: unknown) {
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            } else {
-                errorMessage = 'An unknown error occurred. sowwy';
-            }
-        }
-    }
+  const options: ChartOptions<'line'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
 
-    // END SECTION API
-
-    let chart1: Chart<'line'>;
-    let energycost: HTMLCanvasElement;
-
-    let chart2: Chart<'line'>;
-    let multiAxis: HTMLCanvasElement;
-
-    const data: ChartData<'line'> = {
-        labels: [dayjs().subtract(6, 'day').format('DD.MM'), dayjs().subtract(5, 'day').format('DD.MM'), dayjs().subtract(4, 'day').format('DD.MM'), dayjs().subtract(3, 'day').format('DD.MM'), dayjs().subtract(2, 'day').format('DD.MM'), dayjs().subtract(1, 'day').format('DD.MM'), dayjs().subtract(0, 'day').format('DD.MM')],
-        datasets: [
-        {
-            cubicInterpolationMode: 'monotone',
-            tension: 0.8,
-            data: [12, 19, 3, 5, 2, 3, 9],
-            backgroundColor: [
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            ],
-            borderColor: [
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            'rgba(255, 198, 255, 1)',
-            ],
-            borderWidth: 1
-        }
-        ]
-    };
-
-    const options: ChartOptions<'line'> = {
-        responsive: true,
-        aspectRatio: 2.1,
-        plugins: {
-            legend: {
-                display: false
-            }
-        }
-    };
-
-    const data2: ChartData<'line'> = {
-    labels: [dayjs().subtract(6, 'day').format('DD.MM'), dayjs().subtract(5, 'day').format('DD.MM'), dayjs().subtract(4, 'day').format('DD.MM'), dayjs().subtract(3, 'day').format('DD.MM'), dayjs().subtract(2, 'day').format('DD.MM'), dayjs().subtract(1, 'day').format('DD.MM'), dayjs().subtract(0, 'day').format('DD.MM')],
+  const data2: ChartData<'line'> = {
+    labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
     datasets: [
       {
         cubicInterpolationMode: 'monotone',
@@ -113,143 +64,153 @@
   const options2: ChartOptions<'line'> = {
     responsive: true,
     aspectRatio: 2.2,
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
-    plugins: {
-      title: {
-        display: true,
-      },
-      legend: {
-        display: true
-      }
-    },
+    interaction: { mode: 'index', intersect: false },
+    plugins: { title: { display: true }, legend: { display: true } },
     scales: {
-      y: {
-        type: 'linear',
-        display: true,
-        position: 'left'
-      },
-      y1: {
-        type: 'linear',
-        display: true,
-        position: 'right',
-        grid: {
-          drawOnChartArea: false
-        }
-      }
+      y: { type: 'linear', display: true, position: 'left' },
+      y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
     }
   };
 
-    onMount(() => {
-        chart1 = new Chart(energycost, {
-        type: 'line',
-        data,
-        options
-        });
-        chart2 = new Chart(multiAxis, {
-            type: 'line',
-            data: data2,
-            options: options2
-        });
-        return () => {
-            chart1?.destroy();
-            chart2?.destroy();
-        };
+  const data3: ChartData<'bar'> = {
+    labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
+    datasets: [{
+      data: [12, 19, 3, 5, 2, 3, 9],
+      backgroundColor: Array(7).fill('rgba(255, 198, 255, 1)'),
+      borderColor: Array(7).fill('rgba(255, 198, 255, 1)'),
+      borderWidth: 3
+    }]
+  };
+
+  const options3: ChartOptions<'bar'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
+
+  function connectMQTT(brokerUrl: string, topic: string) {
+    if (!browser || !window.mqtt) return;
+
+      client = window.mqtt.connect(brokerUrl, {
+        username: 'admin',
+        password: 'admin'
+      });
+
+    client.on('connect', () => {
+      console.log('MQTT connected');
+      client.subscribe(topic, (err: any) => {
+        if (err) console.error('Subscribe error:', err);
+        else console.log('Subscribed to', topic);
+      });
     });
+
+    client.on('message', (topic: string, message: Uint8Array) => {
+      let parsed;
+      try {
+        parsed = JSON.parse(message.toString());
+      } catch {
+        parsed = message.toString();
+      }
+      mqttData.set(parsed);
+      console.log('MQTT message:', parsed);
+    });
+
+    client.on('error', (err: any) => {
+      console.error('MQTT error:', err);
+    });
+
+    client.on('reconnect', () => {
+      console.log('MQTT reconnecting...');
+    });
+  }
+
+  function disconnectMQTT() {
+    client?.end?.();
+    client = null;
+  }
+
+  onMount(() => {
+    if (browser && window.mqtt) {
+      connectMQTT('ws://192.168.222.58:9001', 'rust/response/livedata');
+
+      chart1 = new Chart(energycost, { type: 'line', data, options });
+      chart2 = new Chart(multiAxis, { type: 'line', data: data2, options: options2 });
+      chart3 = new Chart(barChart1, { type: 'bar', data: data3, options: options3 });
+    }
+
+    return () => {
+      chart1?.destroy();
+      chart2?.destroy();
+      chart3?.destroy();
+      disconnectMQTT();
+    };
+  });
+
+  onDestroy(() => {
+    disconnectMQTT();
+    chart1?.destroy();
+    chart2?.destroy();
+    chart3?.destroy();
+  });
 </script>
 
+<svelte:head>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</svelte:head>
+
 <div class="wrapper">
-    <div class="box box1">
+  <p>MQTT Data: {$mqttData ? JSON.stringify($mqttData) : 'No data yet'}</p>
 
-        <div class="information-wrapper">
-            <div class="energy-cost box-title2">
-                Energy costs
-                <div class="cost-number">
-                    254 €
-                </div>
-                <div class="cost-percentage">
-                    -33%
-                </div>
-            </div>
-
-            <div class="border"></div>
-
-            <div class="speed box-title2">
-                Speed:
-                <div class="speed-number">
-                    52/h
-                </div>
-                <div class="speed-percentage">
-                    +0%
-                </div>
-            </div>
-
-            <div class="border"></div>
-
-            <div class="fail box-title2">
-                Failures:
-                <div class="fail-number">
-                    0
-                </div>
-                <div class="fail-percentage">
-                    -12%
-                </div>
-            </div>
-        </div>
+  <div class="box box1">
+    <div class="information-wrapper">
+      <div class="energy-cost box-title2">
+        Energy costs:
+        <div class="cost-number">254 €</div>
+        <div class="cost-percentage">-33%</div>
+      </div>
+      <div class="border"></div>
+      <div class="speed box-title2">
+        Speed:
+        <div class="speed-number">52/h</div>
+        <div class="speed-percentage">+0%</div>
+      </div>
+      <div class="border"></div>
+      <div class="fail box-title2">
+        Failures:
+        <div class="fail-number">0</div>
+        <div class="fail-percentage">-12%</div>
+      </div>
     </div>
+  </div>
 
-    <div class="box box2">
-        <div class="box-title">
-            Component information
-        </div>
-
-        <div class="box2-wrapper">
-            <div class="build">
-                Manufacturing:
-                <div class="build-number">
-                    24.04.2025
-                </div>
-            </div>
-
-            <div class="color">
-                Color:
-                <div class="color-number">
-                    Blue
-                </div>
-            </div>
-
-            <div class="index">
-                Component number:
-                <div class="index-number">
-                    X1234
-                </div>
-            </div>
-        </div>
+  <div class="box box2">
+    <div class="box-title">Component information</div>
+    <div class="box2-wrapper">
+      <div class="build">
+        Manufacturing:
+        <div class="build-number">24.04.2025</div>
+      </div>
+      <div class="color">
+        Color:
+        <div class="color-number">Blue</div>
+      </div>
+      <div class="index">
+        Component number:
+        <div class="index-number">X1234</div>
+      </div>
     </div>
+  </div>
 
-    <div class="box box3">
-        <div class="box-title">
-            Environmental conditions
-        </div>
+  <div class="box box3">
+    <div class="box-title">Environmental conditions</div>
+    <canvas bind:this={multiAxis}></canvas>
+  </div>
 
-        <canvas bind:this={multiAxis}></canvas>
-    </div>
+  <div class="box box4">
+    <div class="box-title">Production per day</div>
+    <canvas bind:this={barChart1}></canvas>
+  </div>
 
-    <div class="box box4">
-        <div class="box-title">
-            Components per day
-        </div>
-    </div>
-
-    <div class="box box5">
-        <div class="box-title">
-            Energy costs
-        </div>
-
-        <canvas bind:this={energycost}></canvas>
-    </div>
+  <div class="box box5">
+    <div class="box-title">Energy costs</div>
+    <canvas bind:this={energycost}></canvas>
+  </div>
 </div>
 
 <style>
@@ -258,6 +219,7 @@
         width: 100%;
         align-items: center;
         justify-content: space-between;
+        color: #FB53AC;
     }
 
     .build-number {
@@ -270,6 +232,7 @@
         width: 100%;
         align-items: center;
         justify-content: space-between;
+        color: #FB53AC;
     }
 
     .color-number {
@@ -286,6 +249,7 @@
         width: 100%;
         align-items: center;
         justify-content: space-between;
+        color: #FB53AC;
     }
 
     .index-number {
@@ -309,18 +273,23 @@
         align-items: center;
         justify-content: start;
         /* color: #fb53ac; */
-        background: #FB53AC;
-        background: linear-gradient(to top, #FB53AC 11%, #FFC6FF 100%);
+        background: #ff2f9e;
+        background: linear-gradient(to top, #db0075 11%, #ffa7ff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         /* text-shadow: 0px 0px 3px #fff; */
     }
 
     .box-title2 {
-        background: #FB53AC;
-        background: linear-gradient(to top, #FB53AC 11%, #FFC6FF 100%);
+        color: #FB53AC;
+        /* background: #FB53AC;
+        background: linear-gradient(to top, #FB53AC 11%, #FFC6FF 100%); */
+
+
+        /* background: #ff2f9e;
+        background: linear-gradient(to top, #db0075 11%, #d856d8 100%);
         -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        -webkit-text-fill-color: transparent; */
     }
 
     .border {
@@ -340,10 +309,14 @@
     }
 
     .cost-percentage {
+        /* color: var(--pastel-green-color); */
+        /* background: var(--pastel-green-color); */
+        /* -webkit-background-clip: text; */
+        /* -webkit-text-fill-color: transparent; */
         color: var(--pastel-green-color);
-        background: var(--pastel-green-color);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8);
+        font-weight: bolder;
+        font-size: 1.2rem;
     }
 
     .speed {
@@ -358,10 +331,15 @@
     }
 
     .speed-percentage {
-        color: var(--pastel-green-color);
+        /* color: var(--pastel-green-color);
         background: var(--pastel-green-color);
         -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        -webkit-text-fill-color: transparent; */
+
+        color: var(--pastel-green-color);
+        text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8);
+        font-weight: bolder;
+        font-size: 1.2rem;
     }
 
     .fail {
@@ -376,10 +354,17 @@
     }
 
     .fail-percentage {
-        color: var(--pastel-red-color);
+        /* color: var(--pastel-red-color);
         background: var(--pastel-red-color);
         -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        -webkit-text-fill-color: transparent; */
+
+
+
+        color: var(--pastel-red-color);
+        text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8);
+        font-weight: bolder;
+        font-size: 1.2rem;
     }
 
     .information-wrapper {
@@ -389,7 +374,9 @@
         height: 100%;
     }
 
+    /* wip */
     .wrapper {
+        margin-top: 0px;
         flex: 1;
         display: grid;
         gap: 10px;
@@ -427,10 +414,11 @@
                 var(--c3) 0
             );
         background-size: var(--s) calc(var(--s) / 0.577);
+        /* background-color: rgb(255, 187, 244); */
     }
 
     .box {
-        border: solid 2px;
+        border: solid var(--pastel-pink-color) 4px;
         padding: 20px;
         text-align: center;
         background-color: var(--pastel-white-color);
@@ -447,7 +435,8 @@
         grid-column: 2 / span 20;
 
         padding: 0;
-        background-color: rgb(26, 26, 26, 0.9);
+        background-color: rgb(255, 255, 255, 0.8);
+        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
@@ -455,7 +444,9 @@
         grid-row: 4 / span 4;
         grid-column: 2 / span 12;
 
-        background-color: rgb(26, 26, 26, 0.9);
+        /* background-color: rgb(249, 246, 238, 0.9); */
+        background-color: rgb(255, 255, 255, 0.8);
+        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
@@ -463,7 +454,9 @@
         grid-row: 8 / span 8;
         grid-column: 2 / span 12;
 
-        background-color: rgb(26, 26, 26, 0.9);
+        /* background-color: rgb(249, 246, 238, 0.9); */
+        background-color: rgb(255, 255, 255, 0.8);
+        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
@@ -471,7 +464,9 @@
         grid-row: 10 / span 6;
         grid-column: 14 / span 8;
 
-        background-color: rgb(26, 26, 26, 0.9);
+        /* background-color: rgb(249, 246, 238, 0.9); */
+        background-color: rgb(255, 255, 255, 0.8);
+        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
@@ -479,7 +474,9 @@
         grid-row: 4 / span 6;
         grid-column: 14 / span 8;
 
-        background-color: rgb(26, 26, 26, 0.9);
+        /* background-color: rgb(249, 246, 238, 0.9); */
+        background-color: rgb(255, 255, 255, 0.8);
+        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
@@ -504,12 +501,16 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
+            margin-top: 20px;
         }
 
         .box {
             min-width: 0;
             min-height: 400px;
             margin: 20px;
+            /* background-color: black; */
+            margin-top: 0;
+            margin-bottom: 0;
         }
 
         .box2 {
