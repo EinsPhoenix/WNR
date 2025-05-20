@@ -61,6 +61,7 @@ Ihre Datenbank ist jetzt bereit für:
 | 🐍 Python MQTT   | [Interaktionshandbuch](./Python-Doku/mqtt_interactions.md) | `/Python-Doku/` |
 | 🦀 Rust Endpoints| [MQTT-Referenz](./Rust-Doku/mqtt_endpunkt_doku.md) | `/Rust-Doku/` |
 | 🌐 TCP Protocol  | [Kommunikationsleitfaden](./Python-Doku/tcp_communication.md) | `/Python-Doku/` |
+| 🌐 MQTT Endpoint Doku  | [Fast Guide](./Simple-Guids/MQTT_SCHNITTSTELENDOKU.md) | `/Simple-Guids/` |
 
 ---
 
@@ -71,8 +72,11 @@ Ihre Datenbank ist jetzt bereit für:
       ├── 📁 Python-Doku/
       │   ├── 📄 mqtt_interactions.md
       │   └── 📄 tcp_communication.md
-      └── 📁 Rust-Doku/
-          └── 📄 mqtt_endpunkt_doku.md
+      ├── 📁 Rust-Doku/
+      │   └── 📄 mqtt_endpunkt_doku.md
+      │
+      └── 📁 Simple-Guids
+          └── 📄 MQTT_SCHNITTSTELENDOKU.md
 ```
 
 
