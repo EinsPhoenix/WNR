@@ -42,8 +42,8 @@ pub async fn get_nodes_in_time_range(start: &str, end: &str, graph: &Graph) -> O
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let uuid: String = row.get("uuid").unwrap_or_default();
-                uuids.push(json!(uuid));
+                let uuid: i64 = row.get("uuid").unwrap_or_default();
+                uuids.push(json!({"id": uuid}));
             }
             Some(json!(uuids))
         },
@@ -66,8 +66,8 @@ pub async fn get_nodes_with_temperature_or_humidity(temp: f64, humidity: f64, gr
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let uuid: String = row.get("uuid").unwrap_or_default();
-                uuids.push(json!(uuid));
+                let uuid: i64 = row.get("uuid").unwrap_or_default();
+                uuids.push(json!({"id": uuid}));
             }
             Some(json!(uuids))
         },
@@ -89,8 +89,8 @@ pub async fn get_nodes_with_energy_cost(energy_cost: f64, graph: &Graph) -> Opti
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let uuid: String = row.get("uuid").unwrap_or_default();
-                uuids.push(json!(uuid));
+                let uuid: i64 = row.get("uuid").unwrap_or_default();
+                uuids.push(json!({"id": uuid}));
             }
             Some(json!(uuids))
         },
@@ -112,8 +112,8 @@ pub async fn get_nodes_with_energy_consume(energy_consume: f64, graph: &Graph) -
         Ok(mut result) => {
             let mut uuids = Vec::new();
             while let Ok(Some(row)) = result.next().await {
-                let uuid: String = row.get("uuid").unwrap_or_default();
-                uuids.push(json!(uuid));
+                let uuid: i64 = row.get("uuid").unwrap_or_default();
+                uuids.push(json!({"id": uuid}));
             }
             Some(json!(uuids))
         },

@@ -4,7 +4,7 @@ use log::{info, error};
 use std::error::Error;
 use uuid::Uuid;
 
-// Maximum message size that broker can handle
+
 const MAX_MESSAGE_SIZE: usize = 8000;
 
 pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payload: &Value) -> Result<(), Box<dyn Error>> {
@@ -26,7 +26,6 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
         _ => vec![payload.clone()] 
     };
 
-    // Calculate metadata overhead
     let metadata_template = json!({
         "type": "paginated",
         "request_id": &request_id,
@@ -46,17 +45,25 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
     let total_items = array_payload.len();
     let mut items_per_page = 1; 
     if total_items > 0 {
-       
-        let avg_item_size = (payload_size / total_items).max(1);
-        items_per_page = (effective_max_size / avg_item_size).max(1);
+        let approx_sum_of_raw_item_json_sizes = payload_size.saturating_sub(2 + (total_items - 1).max(0)); 
+        let avg_raw_item_json_size = (approx_sum_of_raw_item_json_sizes as f64 / total_items as f64).max(1.0) as usize;
+        let max_index_digits = if total_items == 1 { 
+            1 
+        } else {
+            (total_items - 1).to_string().len() 
+        };
+        let tuple_serialization_overhead_estimate = 3 + max_index_digits; 
+        let avg_item_tuple_size = (avg_raw_item_json_size + tuple_serialization_overhead_estimate).max(1);
+        items_per_page = (effective_max_size / avg_item_tuple_size).max(1);
     }
-    let total_pages = (total_items + items_per_page - 1) / items_per_page; 
+    let initial_total_pages_estimate = (total_items + items_per_page - 1) / items_per_page; 
 
-    info!("Pagination details: Total Items: {}, Items/Page: ~{}, Total Pages: {}", total_items, items_per_page, total_pages);
+    info!("Pagination details: Total Items: {}, Items/Page (est. tuple): ~{}, Total Pages (est.): {}", total_items, items_per_page, initial_total_pages_estimate);
 
     let mut current_page = 1;
     let mut current_chunk = Vec::new();
     let mut current_chunk_size_estimate = 0; 
+  
 
     for item in array_payload.into_iter().enumerate() {
         let item_json = serde_json::to_string(&item)?;
@@ -68,15 +75,15 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
                 "type": "paginated",
                 "request_id": &request_id,
                 "page": current_page,
-                "total_pages": total_pages,
+                "total_pages": initial_total_pages_estimate, 
                 "data": current_chunk
             });
 
             let page_topic = format!("{}/page/{}", topic, current_page);
             let page_json = serde_json::to_string(&page_payload)?;
 
-            info!("Publishing page {}/{} to {} ({} bytes)",
-                  current_page, total_pages, page_topic, page_json.len());
+            info!("Publishing page {}/{} (estimate) to {} ({} bytes)",
+                  current_page, initial_total_pages_estimate, page_topic, page_json.len());
 
             if page_json.len() > MAX_MESSAGE_SIZE {
                  error!("Calculated page {} size ({}) exceeds MAX_MESSAGE_SIZE ({}). Aborting pagination.", current_page, page_json.len(), MAX_MESSAGE_SIZE);
@@ -88,31 +95,27 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
             current_page += 1;
             current_chunk = Vec::new();
             current_chunk_size_estimate = 0;
-        }
+        } 
 
         current_chunk.push(item);
         current_chunk_size_estimate += item_size + if current_chunk.len() > 1 { 1 } else { 0 }; 
-
-        if current_page > total_pages + 1 { 
-             error!("Pagination exceeded calculated total pages ({} > {}). Aborting.", current_page, total_pages);
-             return Err("Pagination page count exceeded limit".into());
-        }
     }
 
+    let actual_total_pages_count;
     if !current_chunk.is_empty() {
         let page_payload = json!({
             "type": "paginated",
             "request_id": &request_id,
             "page": current_page,
-            "total_pages": total_pages,
+            "total_pages": initial_total_pages_estimate, 
             "data": current_chunk
         });
 
         let page_topic = format!("{}/page/{}", topic, current_page);
         let page_json = serde_json::to_string(&page_payload)?;
 
-        info!("Publishing final page {}/{} to {} ({} bytes)",
-              current_page, total_pages, page_topic, page_json.len());
+        info!("Publishing final page {}/{} (estimate) to {} ({} bytes)",
+              current_page, initial_total_pages_estimate, page_topic, page_json.len());
 
         if page_json.len() > MAX_MESSAGE_SIZE {
              error!("Calculated final page {} size ({}) exceeds MAX_MESSAGE_SIZE ({}). Aborting pagination.", current_page, page_json.len(), MAX_MESSAGE_SIZE);
@@ -120,14 +123,23 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
         }
 
         client.publish(&page_topic, QoS::AtLeastOnce, false, page_json).await?;
+        actual_total_pages_count = current_page;
+    } else {
+        if total_items == 0 {
+            actual_total_pages_count = 0;
+        } else {
+            
+            
+            actual_total_pages_count = current_page - 1;
+        }
     }
 
-    // Publish Summary
+    
     let summary_payload = json!({
         "type": "summary",
         "request_id": request_id,
         "total_items": total_items,
-        "total_pages": total_pages,
+        "total_pages": actual_total_pages_count, 
         "original_size": payload_size,
         "topic_base": topic
     });
@@ -135,7 +147,7 @@ pub async fn publish_paginated_results(client: &AsyncClient, topic: &str, payloa
     let summary_topic = format!("{}/summary", topic);
     client.publish(&summary_topic, QoS::AtLeastOnce, false, serde_json::to_string(&summary_payload)?).await?;
     info!("Published summary for request {}: {} total items across {} pages",
-          request_id, total_items, total_pages);
+          request_id, total_items, actual_total_pages_count);
 
     Ok(())
 }

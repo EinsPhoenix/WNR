@@ -599,8 +599,8 @@ pub async fn get_paginated_ids(page: usize, graph: &Graph) -> Result<Value, Stri
     let shard3_cypher = format!(
         "USE fabric.dbshard3 
          MATCH (id_node:Id) WHERE id_node.value IN [{}]
-         OPTIONAL MATCH (id_node)-[:RECORDED_AT]->(time_node:Timestamp)
-         OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
+         OPTIONAL MATCH (id_node)-[:HAS_TIMESTAMP]->(time_node:Timestamp)
+         OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
          OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
          RETURN id_node.value AS id, {{
              timestamp: time_node.value,

@@ -23,8 +23,8 @@ pub const GET_ALL_DATA_SHARD2: &str = r#"
 pub const GET_ALL_DATA_SHARD3: &str = r#"
     USE fabric.dbshard3
     MATCH (id_node:Id)
-    OPTIONAL MATCH (id_node)-[:RECORDED_AT]->(time_node:Timestamp)
-    OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
+    OPTIONAL MATCH (id_node)-[:HAS_TIMESTAMP]->(time_node:Timestamp)
+    OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
     OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
     RETURN id_node.value AS id, {
         timestamp: time_node.value,
@@ -63,8 +63,8 @@ pub const GET_DATA_BY_ID_SHARD2: &str = r#"
 pub const GET_DATA_BY_ID_SHARD3: &str = r#"
     USE fabric.dbshard3
     MATCH (id_node_s3:Id {value: $target_id})
-    OPTIONAL MATCH (id_node_s3)-[:RECORDED_AT]->(time_node:Timestamp)
-    OPTIONAL MATCH (id_node_s3)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
+    OPTIONAL MATCH (id_node_s3)-[:HAS_TIMESTAMP]->(time_node:Timestamp)
+    OPTIONAL MATCH (id_node_s3)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
     OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
     WITH time_node, econsume_node, ecost_node
     WHERE time_node IS NOT NULL OR econsume_node IS NOT NULL
@@ -129,7 +129,7 @@ pub const CREATE_SENSOR_NODES_SHARD2: &str = r#"
 pub const CREATE_ENERGY_NODES_SHARD3: &str = r#"
     USE fabric.dbshard3
     CREATE (time_node:Timestamp {value: $timestamp})
-    CREATE (econsume_node:EnergyConsume {value: toFloat($energy_consume)})
+    CREATE (econsume_node:EnergyConsumption {value: toFloat($energy_consume)})
     CREATE (ecost_node:EnergyCost {value: toFloat($energy_cost)})
     RETURN time_node.value AS timestamp
 "#;
@@ -156,8 +156,8 @@ pub const DELETE_DATA_BY_ID_SHARD2: &str = r#"
 pub const DELETE_DATA_BY_ID_SHARD3: &str = r#"
     USE fabric.dbshard3
     MATCH (id_node:Id {value: $target_id})
-    OPTIONAL MATCH (id_node)-[r:RECORDED_AT]->(time_node:Timestamp)
-    OPTIONAL MATCH (id_node)-[r:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
+    OPTIONAL MATCH (id_node)-[r:HAS_TIMESTAMP]->(time_node:Timestamp)
+    OPTIONAL MATCH (id_node)-[r:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
     OPTIONAL MATCH (econsume_node)-[r:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
     DELETE r, time_node, econsume_node, ecost_node
     RETURN id_node.value AS deleted_id
@@ -217,9 +217,10 @@ pub const GET_TEMPERATURE_HUMIDITY_AT_TIME: &str = r#"
 
 pub const GET_NODES_IN_TIME_RANGE: &str = r#"
     USE fabric.dbshard3
-    MATCH (id_node:Id)-[:RECORDED_AT]->(time_node:Timestamp)
+    MATCH (id_node:Id)-[:HAS_TIMESTAMP]->(time_node:Timestamp)
     WHERE time_node.value >= $start AND time_node.value <= $end
     RETURN id_node.value AS uuid
+
 "#;
 
 pub const GET_NODES_WITH_TEMPERATURE_OR_HUMIDITY: &str = r#"
@@ -233,14 +234,14 @@ pub const GET_NODES_WITH_TEMPERATURE_OR_HUMIDITY: &str = r#"
 
 pub const GET_NODES_WITH_ENERGY_COST: &str = r#"
     USE fabric.dbshard3
-    MATCH (id_node:Id)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume)
+    MATCH (id_node:Id)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
     MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost {value: $energy_cost})
     RETURN id_node.value AS uuid
 "#;
 
 pub const GET_NODES_WITH_ENERGY_CONSUME: &str = r#"
     USE fabric.dbshard3
-    MATCH (id_node:Id)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsume {value: $energy_consume})
+    MATCH (id_node:Id)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption {value: $energy_consume})
     RETURN id_node.value AS uuid
 "#;
 
