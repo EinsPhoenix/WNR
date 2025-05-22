@@ -3,6 +3,7 @@ use log::{error, info, warn};
 use serde_json::Value;
 use std::collections::HashMap;
 use super::cypher_queries::*;
+use super::logfunctions::log_benchmark;
 
 // Validates if a new item has all required fields for insertion.
 // Input: item - a JSON object representing the item.
@@ -374,6 +375,10 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
         if batch_success {
             processed_count += batch_data.len();
             let batch_time = batch_start_time.elapsed();
+            let benchmark_result = log_benchmark(batch_data.len(), batch_time).await;
+            if let Err(e) = benchmark_result {
+                warn!("Failed to log benchmark: {}", e);
+            }
             info!("Batch completed: {}/{} records processed so far, batch time: {:.2?}, speed: {:.2} records/sec",
                 processed_count, total_items, batch_time, batch_data.len() as f64 / batch_time.as_secs_f64());
         } else {
