@@ -20,7 +20,8 @@
     "mqtt": "^5.13.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "recharts": "^2.15.3"
   },
   "homepage": "http://localhost:3000",
   "browserslist": {

@@ -42,8 +42,17 @@ docker-compose up -d
 
 ## ✅ Verification
 Verify your setup with these commands:
+
 ```cypher
-SHOW DATABASES;
+USE fabric.dbshard1
+SHOW INDEXES;
+```
+```cypher
+USE fabric.dbshard2
+SHOW INDEXES;
+```
+```cypher
+USE fabric.dbshard3
 SHOW INDEXES;
 ```
 ![Verification Screenshots](./Images/image-3.png) ![Index Overview](./Images/image-4.png)

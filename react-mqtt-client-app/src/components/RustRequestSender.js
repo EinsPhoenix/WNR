@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const generateId = () => `react-client-${Math.random().toString(16).substr(2, 8)}`;
 
-// DAS IST WICHTIG TOBI
 const requestTypesAndDataTemplates = [
     { value: 'uuid', label: 'UUID', template: JSON.stringify([{ "uuid": 123 }]) },
     { value: 'all', label: 'All Data', template: JSON.stringify({}) },
@@ -43,6 +43,11 @@ const RustRequestSender = ({ mqttClient }) => {
 
     const [activePagination, setActivePagination] = useState(null);
     const [displayPageNumber, setDisplayPageNumber] = useState(1);
+
+    const [temperatureData, setTemperatureData] = useState([]);
+    const [humidityData, setHumidityData] = useState([]);
+    const [energyConsumptionData, setEnergyConsumptionData] = useState([]);
+    const [energyCostData, setEnergyCostData] = useState([]);
 
     const handleIncomingMessage = useCallback((topic, message) => {
         const messageString = message.toString();
@@ -203,6 +208,85 @@ const RustRequestSender = ({ mqttClient }) => {
     }, [mqttClient, requestingClientId, handleIncomingMessage]);
 
     useEffect(() => {
+        if (mqttClient && mqttClient.connected) {
+            const liveDataTopic = 'rust/response/livedata';
+            console.log(`[${requestingClientId}] Subscribing to ${liveDataTopic}`);
+            mqttClient.subscribe(liveDataTopic, { qos: 0 }, (err) => {
+                if (err) {
+                    console.error(`[${requestingClientId}] Subscription error to ${liveDataTopic}:`, err);
+
+                } else {
+                    console.log(`[${requestingClientId}] Successfully subscribed to ${liveDataTopic}`);
+                }
+            });
+
+            const handleLiveDataMessage = (topic, message) => {
+                const messageString = message.toString();
+
+                let parsedMessage;
+                try {
+                    parsedMessage = JSON.parse(messageString);
+                } catch (e) {
+                    console.error(`[${requestingClientId}] Failed to parse live data MQTT message JSON:`, e, messageString);
+                    return;
+                }
+
+                if (topic === liveDataTopic && parsedMessage.type === "robotdata" && Array.isArray(parsedMessage.data)) {
+
+                    const newTempPoints = [];
+                    const newHumidityPoints = [];
+                    const newEnergyConsumePoints = [];
+                    const newEnergyCostPoints = [];
+
+                    parsedMessage.data.forEach(item => {
+                        const ts = item.timestamp;
+
+                        if (ts && item.sensor_data) {
+                            if (typeof item.sensor_data.temperature === 'number') {
+                                newTempPoints.push({ timestamp: ts, value: item.sensor_data.temperature });
+                            }
+                            if (typeof item.sensor_data.humidity === 'number') {
+                                newHumidityPoints.push({ timestamp: ts, value: item.sensor_data.humidity });
+                            }
+                        }
+                        if (ts && typeof item.energy_consume === 'number') {
+                            newEnergyConsumePoints.push({ timestamp: ts, value: item.energy_consume });
+                        }
+                        if (ts && typeof item.energy_cost === 'number') {
+                            newEnergyCostPoints.push({ timestamp: ts, value: item.energy_cost });
+                        }
+                    });
+
+                    if (newTempPoints.length > 0) {
+                        setTemperatureData(prev => [...prev, ...newTempPoints].slice(-100));
+                    }
+                    if (newHumidityPoints.length > 0) {
+                        setHumidityData(prev => [...prev, ...newHumidityPoints].slice(-100));
+                    }
+                    if (newEnergyConsumePoints.length > 0) {
+                        setEnergyConsumptionData(prev => [...prev, ...newEnergyConsumePoints].slice(-100));
+                    }
+                    if (newEnergyCostPoints.length > 0) {
+                        setEnergyCostData(prev => [...prev, ...newEnergyCostPoints].slice(-100));
+                    }
+                }
+            };
+
+            mqttClient.on('message', handleLiveDataMessage);
+
+            return () => {
+                if (mqttClient.connected) {
+                    console.log(`[${requestingClientId}] Unsubscribing from ${liveDataTopic}`);
+                    mqttClient.unsubscribe(liveDataTopic, (err) => {
+                        if (err) console.error(`[${requestingClientId}] Error unsubscribing from ${liveDataTopic}:`, err);
+                    });
+                }
+                mqttClient.off('message', handleLiveDataMessage);
+            };
+        }
+    }, [mqttClient, requestingClientId]);
+
+    useEffect(() => {
         if (activePagination) {
             const pageIndex = displayPageNumber - 1;
             if (activePagination.pages[pageIndex]) {
@@ -297,7 +381,7 @@ const RustRequestSender = ({ mqttClient }) => {
     };
 
     return (
-        <div style={{ border: '1px solid #ccc', padding: '15px', margin: '10px' }}>
+        <><div style={{ border: '1px solid #ccc', padding: '15px', margin: '10px' }}>
             <h3>MQTT Request Sender</h3>
             <p><strong>My Requesting Client ID:</strong> <code>{requestingClientId}</code></p>
             <form onSubmit={handleSubmit}>
@@ -326,8 +410,7 @@ const RustRequestSender = ({ mqttClient }) => {
                         value={jsonData}
                         onChange={(e) => setJsonData(e.target.value)}
                         rows={5}
-                        style={{ width: '90%', padding: '5px', minHeight: '60px' }}
-                    />
+                        style={{ width: '90%', padding: '5px', minHeight: '60px' }} />
                 </div>
                 <button
                     type="submit"
@@ -393,7 +476,80 @@ const RustRequestSender = ({ mqttClient }) => {
                     </pre>
                 </div>
             )}
-        </div>
+        </div>{/* New section for Live Data Charts */}
+            <div style={{ marginTop: '20px', padding: '15px', border: '1px solid green' }}>
+                <h3>Live Robot Data Charts</h3>
+                <p>Listening on <code>rust/response/livedata</code> for messages with <code>type: "robotdata"</code>.</p>
+                {(temperatureData.length > 0 || humidityData.length > 0 || energyConsumptionData.length > 0 || energyCostData.length > 0) ? (
+                    <>
+                        {temperatureData.length > 0 && (
+                            <div style={{ marginBottom: '30px' }}>
+                                <h4>Temperature (°C) vs. Timestamp</h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={temperatureData} margin={{ top: 5, right: 30, left: 20, bottom: 70 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="timestamp" angle={-45} textAnchor="end" interval="preserveStartEnd" tickFormatter={(tick) => tick.split(' ')[1] || tick} />
+                                        <YAxis domain={['auto', 'auto']} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="value" stroke="#8884d8" name="Temperature" dot={false} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {humidityData.length > 0 && (
+                            <div style={{ marginBottom: '30px' }}>
+                                <h4>Humidity (%) vs. Timestamp</h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={humidityData} margin={{ top: 5, right: 30, left: 20, bottom: 70 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="timestamp" angle={-45} textAnchor="end" interval="preserveStartEnd" tickFormatter={(tick) => tick.split(' ')[1] || tick} />
+                                        <YAxis domain={['auto', 'auto']} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="value" stroke="#82ca9d" name="Humidity" dot={false} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {energyConsumptionData.length > 0 && (
+                            <div style={{ marginBottom: '30px' }}>
+                                <h4>Energy Consumption vs. Timestamp</h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={energyConsumptionData} margin={{ top: 5, right: 30, left: 20, bottom: 70 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="timestamp" angle={-45} textAnchor="end" interval="preserveStartEnd" tickFormatter={(tick) => tick.split(' ')[1] || tick} />
+                                        <YAxis domain={['auto', 'auto']} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="value" stroke="#ffc658" name="Consumption" dot={false} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {energyCostData.length > 0 && (
+                            <div style={{ marginBottom: '30px' }}>
+                                <h4>Energy Cost vs. Timestamp</h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={energyCostData} margin={{ top: 5, right: 30, left: 20, bottom: 70 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="timestamp" angle={-45} textAnchor="end" interval="preserveStartEnd" tickFormatter={(tick) => tick.split(' ')[1] || tick} />
+                                        <YAxis domain={['auto', 'auto']} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="value" stroke="#ff7300" name="Cost" dot={false} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <p>Waiting for live robot data to populate charts...</p>
+                )}
+            </div></>
     );
 };
 
