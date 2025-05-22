@@ -166,3 +166,5 @@ mqtt-broker/mosquitto/log/mosquitto.log
 
 ./export_all_data.json
 **/export_all_data.json
+
+**/package-lock.json
