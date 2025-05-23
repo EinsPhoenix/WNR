@@ -155,6 +155,73 @@ pub async fn get_all_data(graph: &Graph) -> Result<Value, String> {
     Ok(json!(final_data))
 }
 
+// Deletes data for a list of IDs from multiple database shards.
+// Input: ids_to_delete - a vector of IDs to delete, &Graph - a reference to the Neo4j graph instance.
+// Returns: Result<usize, String> - the number of successfully deleted nodes or an error message.
+pub async fn delete_data_by_id(ids_to_delete: &Vec<i64>, graph: &Graph) -> Result<usize, String> {
+    let mut deleted_count = 0;
+    
+    for &id in ids_to_delete {
+        let params = HashMap::from([("target_id".to_string(), id)]);
+
+        let shard1_cypher = DELETE_DATA_BY_ID_SHARD1;
+        let shard1_query = query(shard1_cypher).params(params.clone());
+
+        let shard2_cypher = DELETE_DATA_BY_ID_SHARD2;
+        let shard2_query = query(shard2_cypher).params(params.clone());
+        
+        let shard3_cypher = DELETE_DATA_BY_ID_SHARD3;
+        let shard3_query = query(shard3_cypher).params(params.clone()); 
+
+        let mut node_existed = false;
+        
+        let (shard1_result, shard2_result, shard3_result) = tokio::join!(
+            graph.execute(shard1_query),
+            graph.execute(shard2_query),
+            graph.execute(shard3_query)
+        );
+
+        match shard1_result {
+            Ok(mut result) => {
+                if let Ok(Some(row)) = result.next().await {
+                    if row.get::<i64>("deleted_id").is_ok() {
+                        node_existed = true;
+                        info!("Successfully deleted data from Shard 1 for ID {}", id);
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to delete data from Shard 1 for ID {}: {}", id, e);
+            }
+        }
+
+        match shard2_result {
+            Ok(_) => {
+                info!("Successfully deleted data from Shard 2 for ID {}", id);
+            },
+            Err(e) => {
+                warn!("Failed to delete data from Shard 2 for ID {}: {}", id, e);
+            }
+        }
+
+        match shard3_result {
+            Ok(_) => {
+                info!("Successfully deleted data from Shard 3 for ID {}", id);
+            },
+            Err(e) => {
+                warn!("Failed to delete data from Shard 3 for ID {}: {}", id, e);
+            }
+        }
+
+        if node_existed {
+            deleted_count += 1;
+        }
+    }
+
+    info!("Successfully deleted {} nodes in total", deleted_count);
+    Ok(deleted_count)
+}
+
 // Retrieves data for a specific ID from multiple database shards.
 // Input: id - the target ID, &Graph - a reference to the Neo4j graph instance.
 // Returns: Result<Value, String> - combined data for the ID as JSON or an error message.
@@ -185,11 +252,16 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
     };
 
     let shard2_cypher = GET_DATA_BY_ID_SHARD2;
-    let shard2_query = query(shard2_cypher).params(params.clone()); 
-    info!("Executing Shard 2 query for ID {}", id);
-    let mut shard2_readings_list: Vec<Value> = Vec::new();
+    let shard2_query_fut = graph.execute(query(shard2_cypher).params(params.clone())); 
+    
+    let shard3_cypher = GET_DATA_BY_ID_SHARD3;
+    let shard3_query_fut = graph.execute(query(shard3_cypher).params(params.clone())); 
 
-    match graph.execute(shard2_query).await {
+    info!("Executing Shard 2 and Shard 3 queries concurrently for ID {}", id);
+    let (shard2_execution_result, shard3_execution_result) = tokio::join!(shard2_query_fut, shard3_query_fut);
+
+    let mut shard2_readings_list: Vec<Value> = Vec::new();
+    match shard2_execution_result {
         Ok(mut result) => {
             while let Ok(Some(row)) = result.next().await {
                  match row.get::<Value>("sensor_reading") {
@@ -205,21 +277,14 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
                     }
                 }
             }
-
         }
         Err(e) => {
             warn!("Shard 2 query execution failed or returned no data for ID {} (may indicate ID not present or other issue: {}). Proceeding with potentially incomplete sensor data.", id, e);
-
         }
     };
 
-    let shard3_cypher = GET_DATA_BY_ID_SHARD3;
-
-    let shard3_query = query(shard3_cypher).params(params); 
-    info!("Executing Shard 3 query for ID {}", id);
     let mut shard3_readings_list: Vec<Value> = Vec::new();
-
-     match graph.execute(shard3_query).await {
+     match shard3_execution_result {
         Ok(mut result) => {
             while let Ok(Some(row)) = result.next().await {
                  match row.get::<Value>("energy_reading") {
@@ -235,11 +300,9 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
                     }
                 }
             }
-
         }
         Err(e) => {
              warn!("Shard 3 query execution failed or returned no data for ID {} (may indicate ID not present or other issue: {}). Proceeding with potentially incomplete sensor data.", id, e);
-
         }
     };
 
@@ -282,106 +345,178 @@ pub async fn get_data_by_id(id: i64, graph: &Graph) -> Result<Value, String> {
     info!("Successfully retrieved and combined data from 3 shards for ID {}: {:?}", id, combined_data);
     Ok(combined_data)
 }
-// Deletes data for a list of IDs from multiple database shards.
-// Input: ids_to_delete - a vector of IDs to delete, &Graph - a reference to the Neo4j graph instance.
-// Returns: Result<usize, String> - the number of successfully deleted nodes or an error message.
-pub async fn delete_data_by_id(ids_to_delete: &Vec<i64>, graph: &Graph) -> Result<usize, String> {
-    let mut deleted_count = 0;
-    
-    for &id in ids_to_delete {
-        let params = HashMap::from([("target_id".to_string(), id)]);
 
-        let shard1_cypher = DELETE_DATA_BY_ID_SHARD1;
-        let shard1_query = query(shard1_cypher).params(params.clone());
-
-        let shard2_cypher = DELETE_DATA_BY_ID_SHARD2;
-        let shard2_query = query(shard2_cypher).params(params.clone());
-        
-        let shard3_cypher = DELETE_DATA_BY_ID_SHARD3;
-        let shard3_query = query(shard3_cypher).params(params);
-
-        let mut node_existed = false;
-        
-        match graph.execute(shard1_query).await {
-            Ok(mut result) => {
-                if let Ok(Some(row)) = result.next().await {
-                    if let Ok(_) = row.get::<i64>("deleted_id") {
-                        node_existed = true;
-                        info!("Successfully deleted data from Shard 1 for ID {}", id);
-                    }
-                }
-            },
-            Err(e) => {
-                warn!("Failed to delete data from Shard 1 for ID {}: {}", id, e);
-                
-            }
-        }
-
-        match graph.execute(shard2_query).await {
-            Ok(_) => {
-                info!("Successfully deleted data from Shard 2 for ID {}", id);
-            },
-            Err(e) => {
-                warn!("Failed to delete data from Shard 2 for ID {}: {}", id, e);
-            }
-        }
-
-        match graph.execute(shard3_query).await {
-            Ok(_) => {
-                info!("Successfully deleted data from Shard 3 for ID {}", id);
-            },
-            Err(e) => {
-                warn!("Failed to delete data from Shard 3 for ID {}: {}", id, e);
-            }
-        }
-
-        if node_existed {
-            deleted_count += 1;
-        }
-    }
-
-    info!("Successfully deleted {} nodes in total", deleted_count);
-    Ok(deleted_count)
-}
 // Retrieves the newest IDs from the database.
 // Input: &Graph - a reference to the Neo4j graph instance.
 // Returns: Result<Value, String> - newest IDs as JSON or an error message.
 pub async fn get_newest_ids(graph: &Graph) -> Result<Value, String> {
-    let newest_ids_cypher = GET_NEWEST_IDS;
-    let newest_ids_query = query(newest_ids_cypher);
-    
-    let mut results = Vec::new();
+    let mut ordered_newest_events_s3: Vec<(i64, Value)> = Vec::new();
+    let mut distinct_ids_from_s3_events: std::collections::HashSet<i64> = std::collections::HashSet::new();
 
-    match graph.execute(newest_ids_query).await {
+    let s3_newest_cypher = GET_NEWEST_ENERGYDATA;
+    let s3_newest_query = query(s3_newest_cypher);
+
+    info!("Executing GET_NEWEST_ENERGYDATA query on Shard 3");
+    match graph.execute(s3_newest_query).await {
         Ok(mut result) => {
             while let Ok(Some(row)) = result.next().await {
-                let id: i64 = match row.get("id") {
-                    Ok(id) => id,
-                    Err(e) => {
-                        error!("Failed to get id from row: {}", e);
-                        continue;
+                match row.get::<i64>("id") {
+                    Ok(id_val) => {
+                        match row.get::<Value>("energy_reading") {
+                            Ok(energy_reading_val) => {
+                                ordered_newest_events_s3.push((id_val, energy_reading_val));
+                                distinct_ids_from_s3_events.insert(id_val);
+                            }
+                            Err(e) => {
+                                error!("Shard 3 newest: Failed to get energy_reading for id {}: {}", id_val, e);
+                            }
+                        }
                     }
-                };
-                
-                let uuid: Option<String> = row.get("uuid").ok();
-                let color: Option<String> = row.get("color").ok();
-                
-                results.push(json!({
-                    "id": id,
-                    "uuid": uuid,
-                    "color": color
-                }));
+                    Err(_) => {
+                        warn!("Shard 3 newest: Encountered an entry with missing or invalid ID. Skipping.");
+                    }
+                }
             }
-            
-            info!("Retrieved {} newest IDs from shard 1", results.len());
-            Ok(json!(results))
-        },
+        }
         Err(e) => {
-            let error_msg = format!("Failed to execute GET_NEWEST_IDS query: {}", e);
+            let error_msg = format!("Failed to execute GET_NEWEST_ENERGYDATA query: {}", e);
             error!("{}", error_msg);
-            Err(error_msg)
+            return Err(error_msg);
         }
     }
+
+    if ordered_newest_events_s3.is_empty() {
+        info!("No newest data found in Shard 3 to determine order.");
+        return Ok(json!([]));
+    }
+
+    let target_ids_vec: Vec<i64> = distinct_ids_from_s3_events.into_iter().collect();
+    let has_target_ids = !target_ids_vec.is_empty();
+    let params_for_ids = HashMap::from([("target_ids".to_string(), target_ids_vec.clone())]);
+
+
+    let mut s1_meta_map: HashMap<i64, (Option<String>, Option<String>)> = HashMap::new();
+    if has_target_ids {
+        let s1_data_cypher = GET_DATA_BY_IDS_SHARD1;
+        let s1_data_query = query(s1_data_cypher).params(params_for_ids.clone());
+
+       
+        match graph.execute(s1_data_query).await {
+            Ok(mut result) => {
+                while let Ok(Some(row)) = result.next().await {
+                    if let Ok(id_val) = row.get::<i64>("id") {
+                        let uuid_val: Option<String> = row.get("uuid").ok();
+                        let color_val: Option<String> = row.get("color").ok();
+                        s1_meta_map.insert(id_val, (uuid_val, color_val));
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to execute Shard 1 data query for newest IDs: {}. Data from Shard 1 might be missing.", e);
+            }
+        }
+    }
+
+    let mut s2_sensor_map: HashMap<i64, Vec<Value>> = HashMap::new();
+    
+    if !target_ids_vec.is_empty() {
+        let s2_data_cypher = GET_DATA_BY_IDS_SHARD2;
+        let s2_data_query = query(s2_data_cypher).params(params_for_ids.clone());
+
+        info!("Executing GET_DATA_BY_IDS_SHARD2 for {} distinct IDs", target_ids_vec.len());
+        match graph.execute(s2_data_query).await {
+            Ok(mut result) => {
+                while let Ok(Some(row)) = result.next().await {
+                    if let Ok(id_val) = row.get::<i64>("id") {
+                        if let Ok(sensor_reading) = row.get::<Value>("sensor_reading") {
+                            if !sensor_reading.is_null() && sensor_reading.is_object() {
+                                 s2_sensor_map.entry(id_val).or_default().push(sensor_reading);
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to execute Shard 2 data query for newest IDs: {}. Sensor data from Shard 2 might be missing.", e);
+            }
+        }
+    }
+
+    let mut s3_energy_map: HashMap<i64, Vec<Value>> = HashMap::new();
+    
+    if !target_ids_vec.is_empty() {
+        let s3_data_cypher = GET_ENERGY_DATA_BY_IDS_SHARD3;
+        let s3_data_query = query(s3_data_cypher).params(params_for_ids.clone());
+
+        info!("Executing GET_ENERGY_DATA_BY_IDS_SHARD3 for {} distinct IDs", target_ids_vec.len());
+        match graph.execute(s3_data_query).await {
+            Ok(mut result) => {
+                while let Ok(Some(row)) = result.next().await {
+                    if let Ok(id_val) = row.get::<i64>("id") {
+                        if let Ok(energy_reading) = row.get::<Value>("energy_reading") {
+                             if !energy_reading.is_null() && energy_reading.is_object() {
+                                s3_energy_map.entry(id_val).or_default().push(energy_reading);
+                             }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to execute Shard 3 data query for newest IDs: {}. Energy data from Shard 3 might be incomplete.", e);
+            }
+        }
+    }
+
+    let mut final_results: Vec<Value> = Vec::new();
+    for (id_of_event, _specific_s3_event_data) in ordered_newest_events_s3 {
+        let (uuid_val, color_val) = s1_meta_map.get(&id_of_event)
+            .cloned()
+            .unwrap_or((None, None));
+
+        let s2_readings_for_id = s2_sensor_map.get(&id_of_event).cloned().unwrap_or_default();
+        let s3_readings_for_id = s3_energy_map.get(&id_of_event).cloned().unwrap_or_default();
+
+  
+        let mut merged_sensor_data_list: Vec<Value> = Vec::new();
+        let num_readings_to_merge = s2_readings_for_id.len().max(s3_readings_for_id.len());
+
+        for i in 0..num_readings_to_merge {
+            let mut combined_reading_map = serde_json::Map::new();
+
+            if let Some(s2_val) = s2_readings_for_id.get(i) {
+                if let Some(s2_obj) = s2_val.as_object() {
+                    if let Some(temp) = s2_obj.get("temperature") { combined_reading_map.insert("temperature".to_string(), temp.clone()); }
+                    if let Some(hum) = s2_obj.get("humidity") { combined_reading_map.insert("humidity".to_string(), hum.clone()); }
+                }
+            }
+
+            if let Some(s3_val) = s3_readings_for_id.get(i) {
+                 if let Some(s3_obj) = s3_val.as_object() {
+                    if let Some(ts) = s3_obj.get("timestamp") { combined_reading_map.insert("timestamp".to_string(), ts.clone()); }
+                    if let Some(econ) = s3_obj.get("energy_consume") { combined_reading_map.insert("energy_consume".to_string(), econ.clone()); }
+                    if let Some(ecost) = s3_obj.get("energy_cost") { combined_reading_map.insert("energy_cost".to_string(), ecost.clone()); }
+                }
+            }
+
+            if !combined_reading_map.is_empty() {
+                merged_sensor_data_list.push(Value::Object(combined_reading_map));
+            }
+        }
+        
+        let valid_readings: Vec<Value> = merged_sensor_data_list.into_iter()
+            .filter(|reading| !reading.is_null() && reading.is_object() && !reading.as_object().unwrap().is_empty())
+            .collect();
+
+        final_results.push(json!({
+            "id": id_of_event,
+            "uuid": uuid_val,
+            "color": color_val,
+            "sensor_data": valid_readings
+        }));
+    }
+    
+    info!("Successfully retrieved and combined data for {} newest entries based on Shard 3 timestamps.", final_results.len());
+    Ok(json!(final_results))
 }
 
 // Retrieves the newest sensor data from the database.

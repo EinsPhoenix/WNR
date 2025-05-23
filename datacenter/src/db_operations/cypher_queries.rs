@@ -1,4 +1,3 @@
-
 pub const GET_ALL_DATA_SHARD1: &str = r#"
     USE fabric.dbshard1
     MATCH (id_node:Id)
@@ -136,41 +135,30 @@ pub const CREATE_ENERGY_NODES_SHARD3: &str = r#"
 
 pub const DELETE_DATA_BY_ID_SHARD1: &str = r#"
     USE fabric.dbshard1
-    MATCH (id_node:Id {value: $target_id})
-    OPTIONAL MATCH (id_node)-[r:HAS_UUID]->(uuid_node:Uuid)
-    OpTIONAL MATCH (id_node)-[r:HAS_COLOR]->(color_node:Color)
-    DELETE r, uuid_node, color_node
-    RETURN id_node.value AS deleted_id
+    MATCH (id_node:Id {value: $target_id}) 
+    WITH id_node, id_node.value AS id_val 
+    OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid) 
+    DETACH DELETE id_node, uuid_node 
+    RETURN id_val AS deleted_id 
 "#;
 
 pub const DELETE_DATA_BY_ID_SHARD2: &str = r#"
     USE fabric.dbshard2
-    MATCH (id_node:Id {value: $target_id})
-    OPTIONAL MATCH (id_node)-[r:HAS_SENSOR_DATA]->(sensor_data_node:SensorData)
-    OPTIONAL MATCH (sensor_data_node)-[r:MEASURES_TEMPERATURE]->(temp_node:Temperature)
-    OPTIONAL MATCH (sensor_data_node)-[r:MEASURES_HUMIDITY]->(hum_node:Humidity)
-    DELETE r, sensor_data_node, temp_node, hum_node
-    RETURN id_node.value AS deleted_id
+    MATCH (id_node:Id {value: $target_id}) 
+    WITH id_node, id_node.value AS id_val 
+    OPTIONAL MATCH (id_node)-[:HAS_SENSOR_DATA]->(sensor_data_node:SensorData) 
+    DETACH DELETE id_node, sensor_data_node 
+    RETURN id_val AS deleted_id
 "#;
 
 pub const DELETE_DATA_BY_ID_SHARD3: &str = r#"
     USE fabric.dbshard3
-    MATCH (id_node:Id {value: $target_id})
-    OPTIONAL MATCH (id_node)-[r:HAS_TIMESTAMP]->(time_node:Timestamp)
-    OPTIONAL MATCH (id_node)-[r:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
-    OPTIONAL MATCH (econsume_node)-[r:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
-    DELETE r, time_node, econsume_node, ecost_node
-    RETURN id_node.value AS deleted_id
-"#;
-
-pub const GET_NEWEST_IDS: &str = r#"
-    USE fabric.dbshard1
-    MATCH (id_node:Id)
-    OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
-    OPTIONAL MATCH (id_node)-[:HAS_COLOR]->(color_node:Color)
-    RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
-    ORDER BY id_node.value DESC
-    LIMIT 50
+    MATCH (id_node:Id {value: $target_id}) 
+    WITH id_node, id_node.value AS id_val 
+    OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
+    OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
+    DETACH DELETE id_node, econsume_node, ecost_node
+    RETURN id_val AS deleted_id
 "#;
 
 pub const GET_NEWEST_SENSORDATA: &str = r#"
@@ -311,3 +299,43 @@ pub const DELETE_NODE_ADMIN_SHARD_2: &str = r#"
 pub const DELETE_NODE_ADMIN_SHARD_3: &str = r#"
     USE fabric.dbshard3
     MATCH (n) DETACH DELETE n"#;
+
+
+
+pub const GET_DATA_BY_IDS_SHARD1: &str = r#"
+    USE fabric.dbshard1
+    MATCH (id_node:Id) WHERE id_node.value IN $target_ids
+    OPTIONAL MATCH (id_node)-[:HAS_UUID]->(uuid_node:Uuid)
+    OPTIONAL MATCH (id_node)-[:HAS_COLOR]->(color_node:Color)
+    RETURN id_node.value AS id, uuid_node.value AS uuid, color_node.value AS color
+"#;
+
+pub const GET_DATA_BY_IDS_SHARD2: &str = r#"
+    USE fabric.dbshard2
+    MATCH (id_node:Id) WHERE id_node.value IN $target_ids
+    OPTIONAL MATCH (id_node)-[:HAS_SENSOR_DATA]->(sensor_data_node:SensorData)
+    OPTIONAL MATCH (sensor_data_node)-[:MEASURES_TEMPERATURE]->(temp_node:Temperature)
+    OPTIONAL MATCH (sensor_data_node)-[:MEASURES_HUMIDITY]->(hum_node:Humidity)
+    WITH id_node, sensor_data_node, temp_node, hum_node
+    WHERE sensor_data_node IS NOT NULL
+    RETURN id_node.value AS id, {
+        temperature: temp_node.value,
+        humidity: hum_node.value
+    } AS sensor_reading
+"#;
+
+pub const GET_ENERGY_DATA_BY_IDS_SHARD3: &str = r#"
+    USE fabric.dbshard3
+    MATCH (id_node:Id) WHERE id_node.value IN $target_ids
+    OPTIONAL MATCH (id_node)-[:HAS_TIMESTAMP]->(time_node:Timestamp)
+    OPTIONAL MATCH (id_node)-[:HAS_ENERGY_CONSUMPTION]->(econsume_node:EnergyConsumption)
+    OPTIONAL MATCH (econsume_node)-[:HAS_ENERGY_COST]->(ecost_node:EnergyCost)
+    WITH id_node, time_node, econsume_node, ecost_node
+    WHERE time_node IS NOT NULL OR econsume_node IS NOT NULL OR ecost_node IS NOT NULL
+    RETURN id_node.value AS id, {
+        timestamp: time_node.value,
+        energy_consume: econsume_node.value,
+        energy_cost: ecost_node.value
+    } AS energy_reading
+    ORDER BY id_node.value, time_node.value
+"#;

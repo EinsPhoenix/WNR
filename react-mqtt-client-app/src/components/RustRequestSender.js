@@ -20,9 +20,48 @@ const requestTypesAndDataTemplates = [
     { value: 'newestids', label: 'Newest IDs', template: JSON.stringify({}) },
     { value: 'newestsensordata', label: 'Newest Sensor Data', template: JSON.stringify({}) },
     { value: 'newestenergydata', label: 'Newest Energy Data', template: JSON.stringify({}) },
-    { value: 'addrobotdata', label: 'Add Robot Data', template: JSON.stringify([{ "id": "robot1", "type": "mobile", "attributes": { "color": "blue" }, "relations": [{ "to_id": "sensor1", "type": "monitors" }] }]) },
-    { value: 'addenergydata', label: 'Add Energy Data', template: JSON.stringify([{ "node_id": "node123", "cost": 5.2, "consumption": 100, "timestamp": "YYYY-MM-DDTHH:MM:SSZ" }]) },
-    { value: 'addsensordata', label: 'Add Sensor Data', template: JSON.stringify([{ "node_id": "sensorABC", "temperature": 22.5, "humidity": 55.0, "timestamp": "YYYY-MM-DDTHH:MM:SSZ" }]) },
+    {
+        value: 'addrobotdata', label: 'Add Robot Data', template: JSON.stringify([{
+            "id": 7,
+            "uuid": "efg567hij007",
+            "color": "green",
+            "sensor_data": {
+                "temperature": 19.5,
+                "humidity": 57
+            },
+            "timestamp": "2025-03-10 18:00:00",
+            "energy_consume": 0.28,
+            "energy_cost": 0.006
+        }])
+    },
+    {
+        value: 'addenergydata', label: 'Add Energy Data', template: JSON.stringify([
+            {
+                "timestamp": "2025-05-23T10:00:00Z",
+                "energy_consume": 15.5,
+                "energy_cost": 2.3
+            },
+            {
+                "timestamp": "2025-05-23T10:05:00Z",
+                "energy_consume": 16.2,
+                "energy_cost": 2.4
+            }
+        ])
+    },
+    {
+        value: 'addsensordata', label: 'Add Sensor Data', template: JSON.stringify([
+            {
+                "timestamp": "2025-05-23T11:00:00Z",
+                "temperature": 22.5,
+                "humidity": 45.2
+            },
+            {
+                "timestamp": "2025-05-23T11:05:00Z",
+                "temperature": 22.7,
+                "humidity": 45.8
+            }
+        ])
+    },
     { value: 'relation', label: 'Export All with Relationships', template: JSON.stringify({}) },
     { value: 'page', label: 'Paginated IDs', template: JSON.stringify(1) },
     { value: 'delete', label: 'Delete Data by ID(s)', template: JSON.stringify([1, 2, 3]) },

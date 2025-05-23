@@ -155,8 +155,8 @@ class TcpClient:
 
 colors = ["blue", "green", "red", "yellow", "purple", "orange", "black", "white"]
 start_time = datetime(2025, 4, 22, 10, 0)
-TOTAL_ENTRIES = 100000
-BATCH_SIZE = 1000
+TOTAL_ENTRIES = 100000000
+BATCH_SIZE = 5000
 
 
 def generate_and_send_data():

@@ -165,7 +165,7 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
     let mut current_id_counter = initial_max_id + 1;
     info!("Reserved ID block starting from: {}", current_id_counter);
 
-    const BATCH_SIZE: usize = 100;
+    const BATCH_SIZE: usize = 8000;
     let mut processed_count = 0;
     let mut errors = Vec::new();
 
