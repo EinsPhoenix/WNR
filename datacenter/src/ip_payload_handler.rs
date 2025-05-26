@@ -9,14 +9,16 @@ use crate::db;
 use crate::db_operations::sharding::*;
 use crate::command_handler::router;
 use crate::mqtt::publisher::publish_result;
+use crate::webrtc_server::WebRtcServer;
 
 pub async fn process_json(
     json: &Value, 
     db_handler: Arc<db::DatabaseCluster>, 
     socket: &mut TcpStream,
-    mqtt_client: Option<&Arc<AsyncClient>>
+    mqtt_client: Option<&Arc<AsyncClient>>,
+    webrtc_server: Option<&Arc<WebRtcServer>> 
 ) -> Result<(), String> {
-    info!("Processing JSON: {}", json);
+  
     
     if let Some(message_type) = json.get("type") {
         match message_type.as_str() {
@@ -42,6 +44,11 @@ pub async fn process_json(
             },
             Some("sensordata") => {
                 let result = handle_sensordata(json, db_handler, mqtt_client).await;
+                send_response(socket, &result).await?;
+                Ok(())
+            },
+            Some("videostream") => { 
+                let result = handle_videostream_data(json, webrtc_server).await;
                 send_response(socket, &result).await?;
                 Ok(())
             },
@@ -191,7 +198,7 @@ async fn handle_sensordata(
                         "data": data
                     });
 
-                    // Publish but don't fail if MQTT publishing fails
+               
                     if let Err(e) = publish_result(client, response_topic, &livedata).await {
                         warn!("Failed to publish sensordata to livedata topic: {}", e);
                     } else {
@@ -205,6 +212,70 @@ async fn handle_sensordata(
         }
     } else {
         Err("No 'data' field found in JSON".to_string())
+    }
+}
+
+async fn handle_videostream_data(
+    json: &Value,
+    webrtc_server: Option<&Arc<WebRtcServer>>
+) -> Result<String, String> {
+    let server = match webrtc_server {
+        Some(s) => s,
+        None => {
+            
+            return Ok("Video stream data received, WebRTC server not available".to_string());
+        }
+    };
+
+    let client_count = server.get_client_count().await;
+    if client_count == 0 {
+        return Ok("Video stream ignored, no WebRTC clients connected".to_string());
+    }
+
+    if let Some(video_data_val) = json.get("data") {
+        if let Some(video_data_array) = video_data_val.as_array() {
+            let mut total_frames_processed = 0;
+            
+            
+            for (frame_index, frame_val) in video_data_array.iter().enumerate() {
+                if let Some(frame_data_str) = frame_val.as_str() {
+                    match server.broadcast_video_chunks(frame_data_str, frame_index).await {
+                        Ok(_) => {
+                            total_frames_processed += 1;
+                           
+                        }
+                        Err(e) => {
+                            warn!("Failed to send frame {} to WebRTC clients: {}", frame_index, e);
+                        }
+                    }
+
+                    if frame_index < video_data_array.len() - 1 {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                    }
+                } else {
+                    warn!("Frame {} is not a valid string", frame_index);
+                }
+            }
+            
+            Ok(format!("Processed {} video frames successfully, sent to {} clients", total_frames_processed, client_count))
+        } else if let Some(video_data_str) = video_data_val.as_str() {
+            
+            
+            match server.broadcast_video_chunks(video_data_str, 0).await {
+                Ok(_) => {
+                    info!("Successfully sent single video frame to {} WebRTC clients", client_count);
+                    Ok(format!("Video frame sent successfully to {} clients", client_count))
+                }
+                Err(e) => {
+                    warn!("Failed to send video frame to WebRTC clients: {}", e);
+                    Err(format!("Failed to send video frame to WebRTC clients: {}", e))
+                }
+            }
+        } else {
+            Err("Field 'data' in 'videostream' JSON is neither a string nor an array".to_string())
+        }
+    } else {
+        Err("No 'data' field found in 'videostream' JSON".to_string())
     }
 }
 
@@ -227,12 +298,20 @@ async fn send_error(socket: &mut TcpStream, error_msg: &str) -> Result<(), Strin
 }
 
 async fn send_json_response(socket: &mut TcpStream, json: &Value) -> Result<(), String> {
-    match socket.write_all(json.to_string().as_bytes()).await {
+    let json_string = json.to_string();
+    let response = format!("{}\n", json_string);
+    
+    match socket.write_all(response.as_bytes()).await {
         Ok(_) => {
-            if let Err(e) = socket.write_all(b"\n").await {
-                return Err(format!("Error sending newline: {}", e));
+            
+            match socket.flush().await {
+                Ok(_) => {
+                    
+                    tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+                    Ok(())
+                }
+                Err(e) => Err(format!("Error flushing response: {}", e))
             }
-            Ok(())
         },
         Err(e) => Err(format!("Error sending response: {}", e)),
     }

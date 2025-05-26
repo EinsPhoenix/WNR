@@ -25,6 +25,10 @@ memmap2 = "0.9"
 thiserror = "2.0.12"
 rand = "0.9.1"
 rand_core = "0.9.3"
+base64 = "0.22.1"
+webrtc = "0.13.0"
+tokio-tungstenite = "0.26.2"
+futures-util = "0.3.31"
 
 
 [dev-dependencies]

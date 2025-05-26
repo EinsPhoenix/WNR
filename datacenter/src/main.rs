@@ -1,12 +1,13 @@
 use log::{info, error};
 use dotenv::dotenv;
+use webrtc_server::WebRtcServer;
 use std::env;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::io;
 use serde_json::{json, Value};
 use std::sync::Arc;
-use rumqttc::AsyncClient; // Import AsyncClient from the rumqttc crate
+use rumqttc::AsyncClient; 
 use fern::Dispatch;
 use chrono::Local;
 use std::thread;
@@ -16,6 +17,7 @@ mod auth;
 mod ip_payload_handler;
 mod mqtt;
 mod command_handler;
+mod webrtc_server;
 
 mod db_operations;
 
@@ -85,6 +87,16 @@ async fn main() -> io::Result<()> {
     let listener = TcpListener::bind("0.0.0.0:12345").await?;
     info!("Server is listening on 0.0.0.0:12345");
 
+    let webrtc_server = Arc::new(WebRtcServer::new(1337));
+    let webrtc_server_clone = Arc::clone(&webrtc_server);
+
+    
+    tokio::spawn(async move {
+        if let Err(e) = webrtc_server_clone.start().await {
+            error!("WebRTC server error: {}", e);
+        }
+    });
+
     loop {
         match listener.accept().await {
             Ok((socket, addr)) => {
@@ -92,9 +104,10 @@ async fn main() -> io::Result<()> {
                 let password_clone = password.clone();
                 let db_handler_clone = Arc::clone(&db_handler);
                 let mqtt_client_clone = mqtt_client.clone();
+                let webrtc_server_clone = Arc::clone(&webrtc_server);  
                 
                 tokio::spawn(async move {
-                    if let Err(e) = handle_client(socket, password_clone, db_handler_clone, mqtt_client_clone).await {
+                    if let Err(e) = handle_client(socket, password_clone, db_handler_clone, mqtt_client_clone, webrtc_server_clone).await {  
                         error!("Error handling client {}: {:?}", addr, e);
                     }
                 });
@@ -108,7 +121,8 @@ async fn handle_client(
     mut socket: TcpStream,
     correct_password: String,
     db_handler: Arc<db::DatabaseCluster>,
-    mqtt_client: Option<Arc<AsyncClient>>
+    mqtt_client: Option<Arc<AsyncClient>>,
+    webrtc_server: Arc<WebRtcServer>  
 ) -> io::Result<()> {
     if !auth::authenticate_client(&mut socket, &correct_password).await? {
         return Ok(());
@@ -117,7 +131,8 @@ async fn handle_client(
     loop {
         match receive_json(&mut socket).await {
             Ok(Some(json)) => {
-                if let Err(e) = ip_payload_handler::process_json(&json, Arc::clone(&db_handler), &mut socket, mqtt_client.as_ref()).await {
+                
+                if let Err(e) = ip_payload_handler::process_json(&json, Arc::clone(&db_handler), &mut socket, mqtt_client.as_ref(), Some(&webrtc_server)).await {
                     error!("Error processing JSON: {}", e);
                 }
             },
