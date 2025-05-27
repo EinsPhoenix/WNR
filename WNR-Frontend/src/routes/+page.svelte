@@ -152,6 +152,7 @@
     chart2?.destroy();
     chart3?.destroy();
   });
+  // test
 </script>
 
 <svelte:head>
