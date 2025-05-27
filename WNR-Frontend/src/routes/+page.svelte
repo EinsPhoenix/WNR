@@ -126,19 +126,23 @@
   }
 
   onMount(() => {
-    if (browser && window.mqtt) {
-      connectMQTT('ws://192.168.222.58:9001', 'rust/response/livedata');
+    if (!browser) return;
 
+    const script = document.createElement('script');
+    script.src = '/lib/mqtt.min.js';
+    script.onload = () => {
+      connectMQTT('ws://192.168.1.100:9001', 'rust/response/livedata');
       chart1 = new Chart(energycost, { type: 'line', data, options });
       chart2 = new Chart(multiAxis, { type: 'line', data: data2, options: options2 });
       chart3 = new Chart(barChart1, { type: 'bar', data: data3, options: options3 });
-    }
+    };
+    document.body.appendChild(script);
 
     return () => {
+      disconnectMQTT();
       chart1?.destroy();
       chart2?.destroy();
       chart3?.destroy();
-      disconnectMQTT();
     };
   });
 
@@ -151,7 +155,7 @@
 </script>
 
 <svelte:head>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <!-- <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> -->
 </svelte:head>
 
 <div class="wrapper">

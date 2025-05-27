@@ -5,7 +5,7 @@ export async function connectMqtt() {
 
   const mqtt = (await import('mqtt')).default;
 
-  client = mqtt.connect('ws://192.168.222.1:9001');
+  client = mqtt.connect('ws://192.168.1.100:9001');
 
   client.on('connect', () => {
     console.log('MQTT connected');
