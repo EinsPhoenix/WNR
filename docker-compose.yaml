@@ -37,6 +37,12 @@ services:
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
 
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         networks:
             - cluster1
             - cluster2
@@ -56,13 +62,19 @@ services:
             NEO4J_dbms_mode: CORE
 
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-1-core-1:5000,db-shard-1-core-2:5000,db-shard-1-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
 
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-1-core-1:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -80,12 +92,18 @@ services:
             NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
             NEO4J_dbms_mode: CORE
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-1-core-1:5000,db-shard-1-core-2:5000,db-shard-1-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-1-core-2:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -103,12 +121,18 @@ services:
             NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
             NEO4J_dbms_mode: CORE
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-1-core-1:5000,db-shard-1-core-2:5000,db-shard-1-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-1-core-3:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -128,12 +152,18 @@ services:
             NEO4J_dbms_mode: CORE
 
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-2-core-1:5000,db-shard-2-core-2:5000,db-shard-2-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-2-core-1:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -151,12 +181,18 @@ services:
             NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
             NEO4J_dbms_mode: CORE
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-2-core-1:5000,db-shard-2-core-2:5000,db-shard-2-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-2-core-2:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -174,12 +210,18 @@ services:
             NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
             NEO4J_dbms_mode: CORE
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-2-core-1:5000,db-shard-2-core-2:5000,db-shard-2-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-2-core-3:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -199,12 +241,18 @@ services:
             NEO4J_dbms_mode: CORE
 
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-3-core-1:5000,db-shard-3-core-2:5000,db-shard-3-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-3-core-1:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -222,12 +270,18 @@ services:
             NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
             NEO4J_dbms_mode: CORE
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-3-core-1:5000,db-shard-3-core-2:5000,db-shard-3-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-3-core-2:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -245,12 +299,18 @@ services:
             NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
             NEO4J_dbms_mode: CORE
             NEO4J_causal__clustering_initial__discovery__members: "db-shard-3-core-1:5000,db-shard-3-core-2:5000,db-shard-3-core-3:5000"
-            NEO4J_causal__clustering_expected__core__cluster__size: "3"
+            NEO4J_dbms_cluster_minimum__initial__system__primaries__count: "3"
             NEO4J_dbms_connector_bolt_advertised__address: "db-shard-3-core-3:7687"
             NEO4JLABS_PLUGINS: '["apoc"]'
             NEO4J_dbms_security_procedures_unrestricted: apoc.*
             NEO4J_dbms_security_procedures_allowlist: apoc.*
             NEO4J_dbms_memory_heap_max__size: ${NEO4J_MAX_HEAP_SIZE:-1G}
+        healthcheck:
+            test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo", "RETURN 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
         volumes:
             - "./cypher:/cypher"
         networks:
@@ -277,5 +337,46 @@ services:
               mosquitto_passwd -b -c /mosquitto/config/pwfile $${INITIAL_USER} $${INITIAL_PASSWORD};
             fi;
             exec /docker-entrypoint.sh mosquitto -c /mosquitto/config/mosquitto.conf'
+        healthcheck:
+            test: ["CMD-SHELL", "mosquitto_pub -h localhost -t test -m 'health check' -u admin -P admin"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+        networks:
+            - app-network
+
+    # Notification Service
+    health-monitor:
+        image: alpine:latest
+        container_name: health-monitor
+        depends_on:
+            proxy:
+                condition: service_healthy
+            db-shard-1-core-1:
+                condition: service_healthy
+            db-shard-1-core-2:
+                condition: service_healthy
+            db-shard-1-core-3:
+                condition: service_healthy
+            db-shard-2-core-1:
+                condition: service_healthy
+            db-shard-2-core-2:
+                condition: service_healthy
+            db-shard-2-core-3:
+                condition: service_healthy
+            db-shard-3-core-1:
+                condition: service_healthy
+            db-shard-3-core-2:
+                condition: service_healthy
+            db-shard-3-core-3:
+                condition: service_healthy
+            mqtt-broker:
+                condition: service_healthy
+        command: |
+            sh -c 'echo "All services are working successfully!";
+            echo "Proxy: http://localhost:7474";
+            echo "MQTT Broker: mqtt://localhost:1883";
+            echo "Deployment ended at: $$(date)";
+            sleep 10'
         networks:
             - app-network

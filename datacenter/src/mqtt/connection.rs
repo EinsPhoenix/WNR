@@ -31,7 +31,7 @@ async fn connect_with_retry(options: MqttOptions, buffer_size: usize) -> Result<
                 match eventloop_clone.poll().await {
                     Ok(Event::Incoming(Incoming::ConnAck(ack))) => {
                         if ack.code == rumqttc::ConnectReturnCode::Success {
-                            info!("✅ MQTT connection successful: {:?}", ack);
+                            info!("MQTT connection successful: {:?}", ack);
                             return Ok((client_arc.clone(), eventloop_clone)); 
                         } else {
                             error!("❌ MQTT connection failed with code: {:?}", ack.code);
@@ -139,7 +139,7 @@ pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(
     
     let subscribe_topic = "rust/request";
     match client.subscribe(subscribe_topic, QoS::AtLeastOnce).await {
-         Ok(_) => info!("🔔 Subscribed successfully to: {}", subscribe_topic),
+         Ok(_) => info!("Subscribed successfully to: {}", subscribe_topic),
          Err(e) => {
              error!("❌ Failed to subscribe to {}: {}", subscribe_topic, e);
              return Err(e.into()); 
@@ -182,7 +182,7 @@ pub async fn start_mqtt_client(db_handler: Arc<db::DatabaseCluster>) -> Result<(
     });
 
     
-    info!("👂 Waiting for requests on {}...", subscribe_topic);
+    info!("Waiting for requests on {}...", subscribe_topic);
     loop {
         match eventloop.poll().await {
             Ok(Event::Incoming(Incoming::Publish(msg))) => {
