@@ -374,13 +374,13 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
 
         if batch_success {
             processed_count += batch_data.len();
-            let batch_time = batch_start_time.elapsed();
-            let benchmark_result = log_benchmark(batch_data.len(), batch_time).await;
-            if let Err(e) = benchmark_result {
-                warn!("Failed to log benchmark: {}", e);
-            }
-            info!("Batch completed: {}/{} records processed so far, batch time: {:.2?}, speed: {:.2} records/sec",
-                processed_count, total_items, batch_time, batch_data.len() as f64 / batch_time.as_secs_f64());
+            // let batch_time = batch_start_time.elapsed();
+            // let benchmark_result = log_benchmark(batch_data.len(), batch_time).await;
+            // if let Err(e) = benchmark_result {
+            //     warn!("Failed to log benchmark: {}", e);
+            // }
+            // info!("Batch completed: {}/{} records processed so far, batch time: {:.2?}, speed: {:.2} records/sec",
+            //     processed_count, total_items, batch_time, batch_data.len() as f64 / batch_time.as_secs_f64());
         } else {
             warn!("Batch ending at index {} encountered errors, data consistency might be affected for {} items in this batch.", batch_start + current_batch_actual_size - 1, batch_data.len());
         }
