@@ -65,7 +65,7 @@ class Robot:
 
     def calibrate_camera(self) -> None:
         """Calibrate the camera by moving the robot to specific position."""
-        calibrate_positions: list[tuple[int, int]] = [(50, -250), (200, -200), (300, 0), (200, 200), (50, 250)]
+        calibrate_positions: list[tuple[int, int]] = [(50, -250, 10), (200, -200, 15), (300, 0, 20), (200, 200, 15), (50, 250, 10)]
         for i, pos in enumerate(calibrate_positions):
             self.move_to_position(*pos)
             sleep(0.5)
@@ -81,7 +81,7 @@ class Robot:
             tuple[float, float, float, float]: The current x, y, z, and r positions of the robot.
         """
         (x, y, z, r, j1, j2, j3, j4) = self.device.pose()
-        return (x, y, z, r)
+        return x, y, z, r
 
     def move_to_position(self, target_x: float, target_y: float, target_z: float | None = None, target_r: float | None = None) -> None:
         """
@@ -121,6 +121,26 @@ class Robot:
                 self.device.move_to(x, y, z, r, wait=False)
             # sleep(0.01)
 
+    def get_next_block(self) -> tuple[float, float, str]:
+        """
+        Get the next block position and color from the pi.
+        """
+        response = self.send_message({"type": "color"})
+        for object in response["objects"]:
+            if object["robot_pos"]["x"] > 55:
+                if object["bgr"] == "255,0,0":
+                    color = "blue"
+                elif object["bgr"] == "0,255,0":
+                    color = "green"
+                elif object["bgr"] == "0,0,255":
+                    color = "red"
+                elif object["bgr"] == "0,255,255":
+                    color = "yellow"
+                else:
+                    raise ValueError(f"Unknown color: {object['bgr']}")
+                return object["robot_pos"]["x"], object["robot_pos"]["y"], color
+        return 0, 0, "none"
+
     def move_block_to_storage(self, block_x: float, block_y: float, color: str) -> None:
         """
         Move the robot to the storage position based on the color.
@@ -155,29 +175,39 @@ class Robot:
         getattr(self, f"{color}_storage")[1] += 1
         self.move_to_position(target_x, target_y, storage_z + storage_factor)
 
+    def start_sorting(self) -> None:
+        """Start the sorting process."""
+        while True:
+            block_x, block_y, color = self.get_next_block()
+            if color == "none":
+                print("No more blocks to sort.")
+                break
+            print(f"Moving block at ({block_x}, {block_y}) with color {color} to storage.")
+            self.move_block_to_storage(block_x, block_y, color)
+
 
 def main() -> None:
     robot = Robot(2000)
-    robot.calibrate_camera()
-    # while True:
-    #     command = input("Enter command (move, pick, quit): ")
-    #     if command == "move":
-    #         x = float(input("Enter x: "))
-    #         y = float(input("Enter y: "))
-    #         z = float(input("Enter z: "))
-    #         robot.move_to_position(x, y, z)
-    #         robot.move_to_position(300, 0, 50)
-    #     elif command == "pick":
-    #         color = input("Enter color (green, blue, red, yellow): ")
-    #         block_x = 300
-    #         block_y = 0
-    #         robot.move_block_to_storage(block_x, block_y, color)
-    #         robot.move_to_position(300, 0, 50)
-    #     elif command == "quit":
-    #         robot.disconnect()
-    #         break
-    #     else:
-    #         print("Invalid command.")
+    # robot.calibrate_camera()
+    while True:
+        command = input("Enter command (move, pick, quit): ")
+        if command == "move":
+            x = float(input("Enter x: "))
+            y = float(input("Enter y: "))
+            z = float(input("Enter z: "))
+            robot.move_to_position(x, y, z)
+            robot.move_to_position(300, 0, 50)
+        elif command == "pick":
+            color = input("Enter color (green, blue, red, yellow): ")
+            block_x = 300
+            block_y = 0
+            robot.move_block_to_storage(block_x, block_y, color)
+            robot.move_to_position(300, 0, 50)
+        elif command == "quit":
+            robot.disconnect()
+            break
+        else:
+            print("Invalid command.")
 
 
 if __name__ == "__main__":
