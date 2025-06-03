@@ -1,5 +1,5 @@
-interface Window {
-  mqtt?: any;
-  Buffer?: any;
-  process?: any;
-}
+// interface Window {
+//   mqtt?: any;
+//   Buffer?: any;
+//   process?: any;
+// }

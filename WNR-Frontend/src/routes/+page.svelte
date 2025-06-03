@@ -5,8 +5,8 @@
   import { BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
   import dayjs from 'dayjs';
   import weekday from 'dayjs/plugin/weekday.js';
-  import { writable } from "svelte/store";
-  import { browser } from "$app/environment";
+  import { mqttData, initMqtt } from "$lib/stores/mqttClient";
+
 
   dayjs.extend(weekday);
   Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -20,8 +20,6 @@
   let chart3: Chart<'bar'>;
   let barChart1: HTMLCanvasElement;
 
-  export const mqttData = writable<any>(null);
-  let client: any = null;
 
   const data: ChartData<'line'> = {
     labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
@@ -36,6 +34,7 @@
   };
 
   const options: ChartOptions<'line'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
+
 
   const data2: ChartData<'line'> = {
     labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
@@ -84,62 +83,15 @@
 
   const options3: ChartOptions<'bar'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
 
-  function connectMQTT(brokerUrl: string, topic: string) {
-    if (!browser || !window.mqtt) return;
-
-      client = window.mqtt.connect(brokerUrl, {
-        username: 'admin',
-        password: 'admin'
-      });
-
-    client.on('connect', () => {
-      console.log('MQTT connected');
-      client.subscribe(topic, (err: any) => {
-        if (err) console.error('Subscribe error:', err);
-        else console.log('Subscribed to', topic);
-      });
-    });
-
-    client.on('message', (topic: string, message: Uint8Array) => {
-      let parsed;
-      try {
-        parsed = JSON.parse(message.toString());
-      } catch {
-        parsed = message.toString();
-      }
-      mqttData.set(parsed);
-      console.log('MQTT message:', parsed);
-    });
-
-    client.on('error', (err: any) => {
-      console.error('MQTT error:', err);
-    });
-
-    client.on('reconnect', () => {
-      console.log('MQTT reconnecting...');
-    });
-  }
-
-  function disconnectMQTT() {
-    client?.end?.();
-    client = null;
-  }
-
   onMount(() => {
-    if (!browser) return;
 
-    const script = document.createElement('script');
-    script.src = '/lib/mqtt.min.js';
-    script.onload = () => {
-      connectMQTT('ws://192.168.1.100:9001', 'rust/response/livedata');
-      chart1 = new Chart(energycost, { type: 'line', data, options });
-      chart2 = new Chart(multiAxis, { type: 'line', data: data2, options: options2 });
-      chart3 = new Chart(barChart1, { type: 'bar', data: data3, options: options3 });
-    };
-    document.body.appendChild(script);
+    initMqtt();
+
+    chart1 = new Chart(energycost, { type: 'line', data, options });
+    chart2 = new Chart(multiAxis, { type: 'line', data: data2, options: options2 });
+    chart3 = new Chart(barChart1, { type: 'bar', data: data3, options: options3 });
 
     return () => {
-      disconnectMQTT();
       chart1?.destroy();
       chart2?.destroy();
       chart3?.destroy();
@@ -147,20 +99,13 @@
   });
 
   onDestroy(() => {
-    disconnectMQTT();
     chart1?.destroy();
     chart2?.destroy();
     chart3?.destroy();
   });
-  // test
 </script>
 
-<svelte:head>
-  <!-- <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> -->
-</svelte:head>
-
 <div class="wrapper">
-  <p>MQTT Data: {$mqttData ? JSON.stringify($mqttData) : 'No data yet'}</p>
 
   <div class="box box1">
     <div class="information-wrapper">
