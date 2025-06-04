@@ -1,9 +1,6 @@
 from math import sqrt, pow, atan2, cos, sin
-from sys import path
 
-path.insert(1,'./DLL')
-
-import DobotDllType as dobot_type
+import dll.DobotDllType as dobot_type
 
 
 CON_STR = {
@@ -33,12 +30,7 @@ class DoBotControl():
         self.homeZ: float = homeZ
         self.connected: bool = False
         self.dobot_connect()
-        if speed > 2000:
-            speed = 2000
-        elif speed < 100:
-            speed = 100
-        self.speed: int = speed
-        dobot_type.SetPTPCommonParams(self.api, speed, speed, isQueued=1)
+        self.set_speed(speed)
         # FIXME: Check if pos is good
         self.green_storage: list[tuple[float, float], int] = [(0, 300), 0]
         self.blue_storage: list[tuple[float, float], int] = [(50, 300), 0]
@@ -76,6 +68,20 @@ class DoBotControl():
         self.move_home()
         dobot_type.DisconnectDobot(self.api)
         self.connected = False
+
+    def set_speed(self, speed: int) -> None:
+        """
+        Set the speed of the robot.
+
+        Args:
+            speed (int): The speed to set for the robot.
+        """
+        if speed > 2000:
+            speed = 2000
+        elif speed < 100:
+            speed = 100
+        self.speed: int = speed
+        dobot_type.SetPTPCommonParams(self.api, self.speed, self.speed, isQueued=1)
 
     def move_home(self) -> None:
         """Move the robot to the home position."""
@@ -201,6 +207,7 @@ class DoBotControl():
         self.move_to_position(storage_x, storage_y, storage_z + storage_factor)
         getattr(self, f"{color}_storage")[1] += 1
         self.move_to_position(target_x, target_y, storage_z + storage_factor)
+        self.move_home()
 
 
 if __name__ == "__main__":
@@ -211,9 +218,9 @@ if __name__ == "__main__":
     dobot_type.SetQueuedCmdStartExec(dobot_control.api)
     x, y, z, r = dobot_control.get_current_robot_pos()
     print("Control the robot with the following keys:")
-    print("    Arrow keys: Move in X/Y direction")
-    print("    W/S: Move up/down in Z direction")
-    print("    A/D: Rotate in R direction")
+    print("    WASD: Move in X/Y direction")
+    print("    up/down: Move up/down in Z direction")
+    print("    left/right: Rotate in R direction")
     print("    Space: Toggle suction cup")
     print("    H: Move to home position")
     print("    Sort cubes to storage:")
@@ -230,24 +237,27 @@ if __name__ == "__main__":
     add_hotkey("4", lambda: dobot_control.move_block_to_storage_manual_mode("yellow"))
     add_hotkey("esc", lambda: dobot_control.dobot_disconnect())
     # TODO: Check if this feels good (change step/sleep)
+        # Vielleicht kann ich das auch so umschreiben, dass WASD nicht mit dem Grid funktioniert, sondern "aus der Sicht der Arms" bewegt wird
+            # w: weg von (0, 0) s: zu (0, 0) a/d: links/rechts drehen
+            # Vielleicht kann ich auch beide modi implementieren
     step = 1
     while dobot_control.connected:
         try:
-            if is_pressed("up"):
-                x += step
-            if is_pressed("down"):
-                x -= step
-            if is_pressed("left"):
-                y -= step
-            if is_pressed("right"):
-                y += step
             if is_pressed("w"):
-                z += step
+                x += step
             if is_pressed("s"):
-                z -= step
+                x -= step
             if is_pressed("a"):
-                r -= step
+                y -= step
             if is_pressed("d"):
+                y += step
+            if is_pressed("up"):
+                z += step
+            if is_pressed("down"):
+                z -= step
+            if is_pressed("left"):
+                r -= step
+            if is_pressed("right"):
                 r += step
             dobot_type.SetPTPCmd(dobot_control.api, 1, x, y, z, r, isQueued=1)
             sleep(0.1)
