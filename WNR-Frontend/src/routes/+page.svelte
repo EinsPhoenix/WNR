@@ -36,6 +36,7 @@
   const options: ChartOptions<'line'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
 
 
+  // TODO
   const data2: ChartData<'line'> = {
     labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
     datasets: [
@@ -326,7 +327,7 @@
 
     /* wip */
     .wrapper {
-        margin-top: 0px;
+        margin-top: -30px;
         flex: 1;
         display: grid;
         gap: 10px;

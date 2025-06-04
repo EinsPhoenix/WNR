@@ -1,10 +1,12 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from '$app/navigation';
+    import { mqttData, initMqtt } from "$lib/stores/mqttClient";
   
     let isSticky = false;
   
     onMount(() => {
+      initMqtt();
       const navbar = document.querySelector("nav");
       if (navbar) {
         const sticky = navbar.offsetTop;
@@ -36,27 +38,18 @@
           <!-- <div class="app-name">Why no REST?</div> -->
           <img class="app-name" src="/wrnlogo2.png" alt="wnr logo" width="400" height="auto" />
       </div>
+      
       <div class="group2">
-        <button class="btn">
-          <div class="item item1">
-            [12:03:58] Item #1450 produced 
-          </div>
-        </button>
-        <button class="btn">
-          <div class="item item2">
-            [12:03:58] Item #1449 produced 
-          </div>
-        </button>
-        <button class="btn">
-          <div class="item item3">
-            [12:03:58] Item #1448 produced 
-          </div>
-        </button>
-        <button class="btn">
-          <div class="item item4">
-            [12:03:58] Item #1447 produced 
-          </div>
-        </button>
+        {#each $mqttData as msg}
+          <button class="btn">
+            <div class="item">
+              [{new Date(msg.timestamp).toLocaleTimeString()}]
+              Item
+              #{msg.part_number}
+              produced
+            </div>
+          </button>
+        {/each}
       </div>
 
       <div class="group3">
@@ -178,6 +171,7 @@
       align-items: start;
       background-color: var(--pastel-pink-color);
       border-top: solid 2px;
+      overflow: auto;
     }
 
     .group3 {
