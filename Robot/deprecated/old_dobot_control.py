@@ -65,9 +65,16 @@ class Robot:
 
     def calibrate_camera(self) -> None:
         """Calibrate the camera by moving the robot to specific position."""
-        calibrate_positions: list[tuple[int, int]] = [(50, -250, 10), (200, -200, 15), (300, 0, 20), (200, 200, 15), (50, 250, 10)]
+        z: int = 15
+        mid_value = sqrt(45000)
+        calibrate_positions: list[tuple[int, int]] = [(0, -300), (mid_value, -mid_value), (300, 0), (mid_value, mid_value), (0, 300)]
         for i, pos in enumerate(calibrate_positions):
-            self.move_to_position(*pos)
+            self.move_to_position(*pos, z)
+            input(f"Calibrating position {i + 1} at ({pos[0]}, {pos[1]}, {pos[2]}). Press Enter to continue if QR-Cube is in position.")
+            if pos != (300, 0):
+                self.move_to_position(300, 0, z)
+            else:
+                self.move_to_position(0, 300, z)
             sleep(0.5)
             while self.send_message({"type": "calibrate", "payload": {"number": i, "robot_pos": {"x": pos[0], "y": pos[1]}}})["status"] == "error":
                 sleep(0.5)
