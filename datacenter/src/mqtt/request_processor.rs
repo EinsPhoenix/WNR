@@ -3,6 +3,7 @@ use serde_json::{Value, json};
 use log::{info, error, warn};
 use std::error::Error;
 use std::sync::Arc;
+use chrono::{Duration, Local};
 
 use crate::db;
 use crate::db_operations::specificoperations::*;
@@ -521,6 +522,28 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             } else {
                  warn!("Missing 'data' field for 'delete' request. Client: {}", requesting_client_id);
                 return publish_error_response(client, &requesting_client_id, "delete", "Missing 'data' field").await;
+            }
+        },
+
+        Some("cheap_energy") => {
+            info!("Processing 'cheap_energy' request for Client-ID: {}", requesting_client_id);
+            let response_topic = format!("rust/response/{}/cheap_energy", requesting_client_id);
+            let start = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+            let end = (Local::now() + Duration::hours(24)).format("%Y-%m-%d %H:%M:%S").to_string();
+
+            if let (start_time, end_time) = (start, end) {
+                match get_cheap_energy(&start_time, &end_time, &write_conn).await {
+                    Some(nodes) => {
+                        publish_result(client, &response_topic, &nodes).await?;
+                    },
+                    None => {
+                        error!("Failed to get cheap energy data for Client-ID: {} in range ('{}' - '{}')", requesting_client_id, start_time, end_time);
+                        return publish_error_response(client, &requesting_client_id, "cheap_energy", "Failed to get cheap energy data").await;
+                    }
+                }
+            } else {
+                warn!("Missing or invalid 'start' or 'end' fields for 'cheap_energy' request. Client: {}", requesting_client_id);
+                return publish_error_response(client, &requesting_client_id, "cheap_energy", "Missing or invalid 'start' or 'end' fields (must be strings)").await;
             }
         },
 

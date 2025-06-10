@@ -3,7 +3,7 @@ use log::{error, info, warn};
 use serde_json::Value;
 use std::collections::HashMap;
 use super::cypher_queries::*;
-use super::logfunctions::log_benchmark;
+// use super::logfunctions::log_benchmark;
 
 // Validates if a new item has all required fields for insertion.
 // Input: item - a JSON object representing the item.
@@ -63,7 +63,6 @@ async fn prepare_new_sensordata(item: &Value) -> Option<HashMap<String, String>>
 // Returns: bool - true if valid, false otherwise.
 async fn validate_new_energydata(item: &Value) -> bool {
     item.get("timestamp").and_then(|v| v.as_str()).is_some()
-        && item.get("energy_consume").and_then(|v| v.as_f64()).is_some()
         && item.get("energy_cost").and_then(|v| v.as_f64()).is_some()
 }
 
@@ -74,7 +73,6 @@ async fn prepare_new_energydata(item: &Value) -> Option<HashMap<String, String>>
     let mut params = HashMap::new();
 
     params.insert("timestamp".to_string(), item.get("timestamp")?.as_str()?.to_string());
-    params.insert("energy_consume".to_string(), item.get("energy_consume")?.as_f64()?.to_string());
     params.insert("energy_cost".to_string(), item.get("energy_cost")?.as_f64()?.to_string());
 
     Some(params)
@@ -171,7 +169,7 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
 
     for batch_start in (0..total_items).step_by(BATCH_SIZE) {
         let current_batch_actual_size = std::cmp::min(BATCH_SIZE, total_items - batch_start);
-        let batch_start_time = std::time::Instant::now();
+        // let batch_start_time = std::time::Instant::now();
 
         info!("Processing batch of {} items starting at index {}", current_batch_actual_size, batch_start);
 
@@ -550,7 +548,7 @@ pub async fn create_new_energy_nodes(data: &Value, graph: &Graph) -> Result<usiz
             }
         };
 
-        let cypher = CREATE_ENERGY_NODES_SHARD3;
+        let cypher = CREATE_ENERGY_COST_NODES_SHARD3;
         let query = query(cypher).params(params.clone());
 
         let timestamp_str = params.get("timestamp").cloned().unwrap_or_else(|| "unknown".to_string());

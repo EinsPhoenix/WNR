@@ -125,13 +125,26 @@ pub const CREATE_SENSOR_NODES_SHARD2: &str = r#"
     RETURN sensor_data_node.value AS timestamp
 "#;
 
-pub const CREATE_ENERGY_NODES_SHARD3: &str = r#"
+pub const CREATE_ENERGY_COST_NODES_SHARD3: &str = r#"
     USE fabric.dbshard3
-    CREATE (time_node:Timestamp {value: $timestamp})
-    CREATE (econsume_node:EnergyConsumption {value: toFloat($energy_consume)})
-    CREATE (ecost_node:EnergyCost {value: toFloat($energy_cost)})
+    MERGE (time_node:Timestamp {value: $timestamp})
+    MERGE (ecost_node:EnergyCost {value: toFloat($energy_cost)})
+    MERGE (time_node)-[:ENERGY_COSTS]->(ecost_node)
     RETURN time_node.value AS timestamp
 "#;
+
+pub const GET_ENERGY_COSTS: &str = r#"
+    USE fabric.dbshard3
+    MATCH (time_node:Timestamp)-[:ENERGY_COSTS]->(ecost_node:EnergyCost)
+    WHERE time_node.value >= $start    
+    AND time_node.value <= $end  
+    RETURN 
+    time_node.value AS timestamp,
+    ecost_node.value AS energy_cost
+    ORDER BY energy_cost ASC
+    LIMIT 5
+    "#;
+
 
 pub const DELETE_DATA_BY_ID_SHARD1: &str = r#"
     USE fabric.dbshard1

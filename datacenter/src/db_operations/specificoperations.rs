@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use crate::db_operations::cypher_queries::{
     GET_TEMPERATURE_HUMIDITY_AT_TIME, GET_NODES_IN_TIME_RANGE,
     GET_NODES_WITH_TEMPERATURE_OR_HUMIDITY, GET_NODES_WITH_ENERGY_COST,
-    GET_NODES_WITH_ENERGY_CONSUME, GET_NODES_WITH_COLOR
+    GET_NODES_WITH_ENERGY_CONSUME, GET_NODES_WITH_COLOR,GET_ENERGY_COSTS
 };
 
 // Retrieves temperature and humidity at a specific timestamp.
@@ -146,6 +146,38 @@ pub async fn get_nodes_with_color(color: &str, graph: &Graph) -> Option<Value> {
                 }));
             }
             info!("Found {} nodes with color {}", nodes_data.len(), color);
+            Some(json!(nodes_data))
+        },
+        Err(e) => {
+            error!("Failed to execute Neo4j query: {}", e);
+            None
+        }
+    }
+}
+
+
+pub async fn get_cheap_energy(start: &str, end: &str,graph: &Graph) -> Option<Value> {
+    info!("{}, end {}", start, end);
+    let cypher_query = query(GET_ENERGY_COSTS)
+        .param("start", start)
+        .param("end", end);
+
+   
+
+    match graph.execute(cypher_query).await {
+        Ok(mut result) => {
+            let mut nodes_data = Vec::new();
+            while let Ok(Some(row)) = result.next().await {
+                let timestamp: &str = row.get("timestamp").unwrap_or_default();
+                let energy_cost: f64 = row.get("energy_cost").unwrap_or_default();
+                info!("{}", timestamp);
+
+                nodes_data.push(json!({
+                    "timestamp": timestamp,
+                    "energy_cost": energy_cost
+                }));
+            }
+            info!("Found {} nodes with energy costs", nodes_data.len());
             Some(json!(nodes_data))
         },
         Err(e) => {
