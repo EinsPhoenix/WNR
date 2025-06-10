@@ -2,18 +2,22 @@ from ctypes import windll, c_int, byref, sizeof
 from ctypes.wintypes import HWND, DWORD
 from json import dumps, loads
 from socket import socket, AF_INET, SOCK_STREAM
+from time import sleep
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QLayout, QLayoutItem, QWidget, QVBoxLayout, QHBoxLayout, QApplication, QMainWindow
 
 
-def send_message(self, message_to_send: str) -> None:
+def send_message(self, message_to_send: str) -> str | None:
     """
     Send a command to the rasberry pi, which controls the camera.
 
     Args:
         self: The main window object.
         message_to_send (str): The message to send.
+
+    Returns:
+        str | None: The response from the server, or None if an error occurred.
     """
     try:
         with socket(AF_INET, SOCK_STREAM) as s:
@@ -111,5 +115,79 @@ def set_robot_speed(self, speed: str) -> None:
     except ValueError:
         self.show_warning("Invalid speed value. Please enter a valid integer.")
     else:
+        if self.robot_busy:
+            self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
+            return
+        else:
+            self.robot_busy = True
         self.sorter.set_speed(speed_value)
-        self.post_main_widget()
+        self.robot_busy = False
+
+
+def cancel_calibration(self) -> None:
+    """
+    Cancel the calibration process and reset the state.
+
+    Args:
+        self: The main window object.
+    """
+    if self.calibrate_button.text() == "Confirm":
+        send_message(self, {"type": "calibrate", "payload": {"finish": True}})
+        self.calibrate_label.setText("Calibration cancelled. You can start again.")
+        self.calibrate_button.setText("Calibration")
+        self.current_calibration_step = 0
+        self.robot_busy = False
+    else:
+        remove_warning(self)
+
+
+def confirm_calibration_step(self) -> None:
+    """
+    Confirm the calibration step by moving the robot to specific positions.
+
+    Args:
+        self: The main window object.
+    """
+    if self.robot_busy:
+        self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
+        return
+    else:
+        self.robot_busy = True
+    pos = self.calibrate_positions[self.current_calibration_step]
+    z: int = 15
+    if self.calibrate_button.text() == "Calibration":
+        # self.sorter.move_to_position(*pos, z)
+        self.calibrate_label.setText(f"Calibrating position {self.current_calibration_step + 1} at ({pos[0]}, {pos[1]}, {z}).\nConfirm to continue if QR-Cube is in position.")
+        self.calibrate_button.setText("Confirm")
+    else:
+        # if pos != (300, 0):
+        #     self.sorter.move_to_position(300, 0, z)
+        # else:
+        #     self.sorter.move_to_position(0, 300, z)
+        sleep(0.5)
+        while send_message(self, {"type": "calibrate", "payload": {"number": self.current_calibration_step, "robot_pos": {"x": pos[0], "y": pos[1]}}})["status"] == "error":
+            sleep(0.5)
+        self.current_calibration_step += 1
+        if self.current_calibration_step == len(self.calibrate_positions):
+            send_message(self, {"type": "calibrate", "payload": {"finish": True}})
+            self.calibrate_label.setText("Calibration finished. You can now start sorting.")
+            self.calibrate_button.setText("Calibration")
+        else:
+            pos = self.calibrate_positions[self.current_calibration_step]
+            # self.sorter.move_to_position(*pos, z)
+            self.calibrate_label.setText(f"Calibrating position {self.current_calibration_step + 1} at ({pos[0]}, {pos[1]}, {z}).\nConfirm to continue if QR-Cube is in position.")
+    self.robot_busy = False
+
+
+def remove_warning(self) -> None:
+    """
+    Remove the warning text if it exists.
+
+    Args:
+        self: The main window object.
+    """
+    if self.warned:
+        self.warned = False
+        if hasattr(self, "warning_text"):
+            self.warning_text.setParent(None)
+            del self.warning_text

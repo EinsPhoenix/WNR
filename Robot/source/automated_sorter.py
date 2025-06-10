@@ -1,5 +1,4 @@
 from math import sqrt
-from time import sleep
 
 from dobot_control import DoBotControl
 from utils import send_message
@@ -17,23 +16,6 @@ class AutomatedSorter(DoBotControl):
         super().__init__(speed=speed)
         self.host = host
         self.port = port
-
-    def calibrate_camera(self) -> None:
-        """Calibrate the camera by moving the robot to specific position."""
-        mid_value = sqrt(45000)
-        calibrate_positions: list[tuple[int, int]] = [(0, -300), (mid_value, -mid_value), (300, 0), (mid_value, mid_value), (0, 300)]
-        z: int = 15
-        for i, pos in enumerate(calibrate_positions):
-            self.move_to_position(*pos, z)
-            input(f"Calibrating position {i + 1} at ({pos[0]}, {pos[1]}, {pos[2]}). Press Enter to continue if QR-Cube is in position.")
-            if pos != (300, 0):
-                self.move_to_position(300, 0, z)
-            else:
-                self.move_to_position(0, 300, z)
-            sleep(0.5)
-            while send_message(self, {"type": "calibrate", "payload": {"number": i, "robot_pos": {"x": pos[0], "y": pos[1]}}})["status"] == "error":
-                sleep(0.5)
-        send_message(self, {"type": "calibrate", "payload": {"finish": True}})
 
     def get_next_block(self) -> tuple[float, float, str]:
         """
@@ -93,15 +75,17 @@ class AutomatedSorter(DoBotControl):
         self.move_to_position(target_x, target_y, storage_z + storage_factor)
         self.move_home()
 
-    def start_sorting(self) -> None:
-        """Start the sorting process."""
-        while True:
-            block_x, block_y, color = self.get_next_block()
-            if color == "none":
-                print("No more blocks to sort.")
-                break
-            print(f"Moving block at ({block_x}, {block_y}) with color {color} to storage.")
-            self.move_block_to_storage(block_x, block_y, color)
+
+def connect_to_dobot(self) -> None:
+    """
+    Connect to the Dobot device and initialize the sorter.
+
+    Args:
+        self: The main window object.
+    """
+    # FIXME: Entkommentieren, wenn ich fertig getestet habe
+    # self.sorter = AutomatedSorter()
+    self.post_main_widget()
 
 
 if __name__ == "__main__":

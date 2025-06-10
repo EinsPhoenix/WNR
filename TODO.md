@@ -1,11 +1,23 @@
 # TODO
 
+## GUI implementierung:
+
+- Ich will, dass man anfangs mit Tab durch die sidebar geht
+    - Wenn man dann enter drückt kommt man in den submenu mode
+        - Submenu mode heißt, dass man mit tab nur durch die Elemente im conent_menu schalten kann
+        - Mit esc kann man wieder aus dem submenu mode raus
+
+- Farbfilter und Kamerabilder in das GUI integrieren
+    - [Beispiel](/GUI_example.png)
+        - Ich sollte auch ein "Tab design" umsetzen, so dass man seinen Bereich auf der rechten Seite auswählen kann
+        - Den Nightmode selector links unten find ich auch gut
+
+- Manuelle Steuerung in GUI integrieren
+
 ## Next:
 
-- Speed ändern wärend Programm
-    - Für Hand und Programmsteuerung
-
-- Eine Möglichkeit das Sortieren abzubrechen
+- Ich könnte "Change speed" zu "Change run vars" oder so ändern
+    - Dann kann ich auch während dem Laufen verschiedene Werte für die höhe oder so testen
 
 - Menüoption "Lagerverwaltung"
     - Anzeigen der Füllstände

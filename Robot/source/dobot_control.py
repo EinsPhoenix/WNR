@@ -20,8 +20,6 @@ class DoBotControl():
             homeY (float, optional): The Y coordinate of the home position. Default is 0.
             homeZ (float, optional): The Z coordinate of the home position. Default is 0.
             speed (int, optional): The speed of the robot. Default is 500.
-            host (str, optional): The host address. Default is "localhost".
-            port (int, optional): The port number. Default is 65432.
         """
         self.suction: bool = False
         self.api = dobot_type.load()
@@ -31,7 +29,6 @@ class DoBotControl():
         self.connected: bool = False
         self.dobot_connect()
         self.set_speed(speed)
-        # FIXME: Check if pos is good
         self.green_storage: list[tuple[float, float], int] = [(0, 300), 0]
         self.blue_storage: list[tuple[float, float], int] = [(50, 300), 0]
         self.red_storage: list[tuple[float, float], int] = [(0, -300), 0]
@@ -123,10 +120,10 @@ class DoBotControl():
         Move the robot to the specified position.
 
         Args:
-            x (float): The target x position.
-            y (float): The target y position.
-            z (float | None, optional): The target z position. Default is None.
-            r (float | None, optional): The target r position. Default is None.
+            target_x (float): The target x position.
+            target_y (float): The target y position.
+            target_z (float | None, optional): The target z position. Default is None.
+            target_r (float | None, optional): The target r position. Default is None.
         """
         current_x, current_y, current_z, current_r = self.get_current_robot_pos()
         if target_z is None:

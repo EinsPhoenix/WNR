@@ -25,7 +25,6 @@ class Robot:
         self.device.move_to(250, 0, 0, 0, wait=True)
         self.host = host
         self.port = port
-        # FIXME: Check if pos is good
         self.green_storage: list[tuple[float, float], int] = [(0, 300), 0]
         self.blue_storage: list[tuple[float, float], int] = [(50, 300), 0]
         self.red_storage: list[tuple[float, float], int] = [(0, -300), 0]
