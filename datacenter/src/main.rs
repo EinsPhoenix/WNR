@@ -6,10 +6,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::io;
 use serde_json::{json, Value};
 use std::sync::Arc;
-use rumqttc::AsyncClient; // Import AsyncClient from the rumqttc crate
+use rumqttc::AsyncClient; 
 use fern::Dispatch;
 use chrono::Local;
 use std::thread;
+use local_ip_address;
 
 mod db;
 mod auth;
@@ -63,7 +64,7 @@ async fn main() -> io::Result<()> {
     let db_mqtt_handler_clone = Arc::clone(&db_handler);
 
     thread::spawn(move || {
-        info!("Spawning dedicated thread for MQTT client...");
+       
         let rt = match tokio::runtime::Runtime::new() {
             Ok(rt) => rt,
             Err(e) => {
@@ -73,7 +74,7 @@ async fn main() -> io::Result<()> {
         };
 
         rt.block_on(async move {
-            info!("MQTT client thread started. Running start_mqtt_client...");
+
             if let Err(e) = mqtt::connection::start_mqtt_client(db_mqtt_handler_clone).await {
                 error!("MQTT client encountered an error: {:?}", e);
             }
@@ -83,7 +84,12 @@ async fn main() -> io::Result<()> {
 
     let password = env::var("SERVER_PASSWORD").expect("SERVER_PASSWORD not set in .env");
     let listener = TcpListener::bind("0.0.0.0:12345").await?;
-    info!("Server is listening on 0.0.0.0:12345");
+    let local_ip = match local_ip_address::local_ip() {
+        Ok(ip) => ip.to_string(),
+        Err(_) => "unknown".to_string(),
+    };
+
+    info!("\n \n !!!TCP is listening on {}:12345!!! \n", local_ip);
 
     loop {
         match listener.accept().await {
