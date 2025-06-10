@@ -531,7 +531,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             let start = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
             let end = (Local::now() + Duration::hours(24)).format("%Y-%m-%d %H:%M:%S").to_string();
 
-            if let (start_time, end_time) = (start, end) {
+                let (start_time, end_time) = (start, end);
                 match get_cheap_energy(&start_time, &end_time, &write_conn).await {
                     Some(nodes) => {
                         publish_result(client, &response_topic, &nodes).await?;
@@ -541,10 +541,7 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                         return publish_error_response(client, &requesting_client_id, "cheap_energy", "Failed to get cheap energy data").await;
                     }
                 }
-            } else {
-                warn!("Missing or invalid 'start' or 'end' fields for 'cheap_energy' request. Client: {}", requesting_client_id);
-                return publish_error_response(client, &requesting_client_id, "cheap_energy", "Missing or invalid 'start' or 'end' fields (must be strings)").await;
-            }
+            
         },
 
         Some("topic") => { 

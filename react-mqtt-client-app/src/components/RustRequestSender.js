@@ -5,6 +5,7 @@ const generateId = () => `react-client-${Math.random().toString(16).substr(2, 8)
 
 const requestTypesAndDataTemplates = [
     { value: 'uuid', label: 'UUID', template: JSON.stringify([{ "uuid": 123 }]) },
+    { value: 'cheap_energy', label: 'cheap energy', template: JSON.stringify([{}]) },
     { value: 'all', label: 'All Data', template: JSON.stringify({}) },
     { value: 'color', label: 'Nodes by Color', template: JSON.stringify("red") },
     {
