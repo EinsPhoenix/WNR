@@ -1,11 +1,12 @@
 from math import sqrt
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QLineEdit, QPushButton, QSizePolicy, QWidget
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QWidget, QGridLayout
 
+from custom_elements import ModernToggle
 from sorting import start_sorting_worker, cancel_sorting
-from utils import cancel_calibration, confirm_calibration_step, set_robot_speed
+from utils import cancel_calibration, confirm_calibration_step, save_config, read_config, set_settings, update_storage_display, increase_storage, decrease_storage
 
 
 def reset_slogan(self) -> None:
@@ -14,84 +15,6 @@ def reset_slogan(self) -> None:
     self.slogan_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     self.slogan_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
     self.all_wrapper.addWidget(self.slogan_label)
-
-
-class SidebarButton(QPushButton):
-    def __init__(self, text: str) -> None:
-        """
-        Initialize a sidebar button with the given text.
-
-        Args:
-            text (str): The text to display on the button.
-        """
-        super().__init__(text)
-        self.setCheckable(True)
-        self.setMinimumHeight(50)
-        
-        self.setStyleSheet("""
-            QPushButton {
-                text-align: left;
-                padding: 15px 20px;
-                border: none;
-                background-color: transparent;
-                color: #ffffff;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: rgba(254, 176, 189, 0.5);
-            }
-            QPushButton:focus {
-                background-color: rgba(254, 176, 189, 0.5);
-            }
-            QPushButton:checked {
-                background-color: rgba(254, 176, 189, 0.5);
-                border-left: 4px solid #99354F;
-            }
-        """)
-
-
-class CustomSidebar(QWidget):
-    tabChanged = Signal(int)
-    
-    def __init__(self, tabs: list = []) -> None:
-        """
-        Initialize the sidebar with a list of tabs.
-
-        Args:
-            tabs (list, optional): A list of tab names to display in the sidebar. Defaults to an empty list.
-        """
-        super().__init__()
-        self.tabs = tabs
-        self.buttons = []
-        self.setup_ui()
-        
-    def setup_ui(self) -> None:
-        """Set up the user interface for the sidebar."""
-        layout = QVBoxLayout(self)
-        layout.setSpacing(2)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        for i, tab in enumerate(self.tabs):
-            button = SidebarButton(tab)
-            button.clicked.connect(lambda checked, idx=i: self.select_tab(idx))
-            self.buttons.append(button)
-            layout.addWidget(button)
-        
-        layout.addStretch()
-
-        self.buttons[0].setChecked(True)
-    
-    def select_tab(self, index: int) -> None:
-        """
-        Select a tab by index and emit the tabChanged signal.
-
-        Args:
-            index (int): The index of the tab to select.
-        """
-        for i, btn in enumerate(self.buttons):
-            btn.setChecked(i == index)
-        self.tabChanged.emit(index)
 
 
 def post_calibrate_camera(self) -> QWidget:
@@ -147,7 +70,7 @@ def post_start_sorting(self) -> QWidget:
     cancel_button = QPushButton("Cancel")
     cancel_button.clicked.connect(lambda: cancel_sorting(self))
     start_sorting_button = QPushButton("Start")
-    # start_sorting_button.clicked.connect(lambda: self.sorter.start_sorting())
+    start_sorting_button.clicked.connect(lambda: self.sorter.start_sorting())
     start_sorting_button.clicked.connect(lambda: start_sorting_worker(self))
     button_layout.addWidget(cancel_button)
     button_layout.addWidget(start_sorting_button)
@@ -157,44 +80,149 @@ def post_start_sorting(self) -> QWidget:
     return page
 
 
-def post_change_speed(self) -> QWidget:
+def post_manual_controls(self) -> QWidget:
     """
-    Post the change speed widget to the main window.
+    Post the manual controls widget to the main window.
 
     Args:
         self: The main window object.
 
     Returns:
-        QWidget: The widget containing the change speed interface.
+        QWidget: The widget containing the manual controls interface.
     """
-    page = QWidget()
-    layout = QVBoxLayout(page)
-
-    speed_label = QLabel("Enter new speed:")
-    speed_input = QLineEdit()
-    layout.addWidget(speed_label)
-    layout.addWidget(speed_input)
-
-    button_layout = QHBoxLayout()
-    cancel_button = QPushButton("Cancel")
-    cancel_button.clicked.connect(self.post_main_widget)
-    change_speed_button = QPushButton("Change speed")
-    change_speed_button.clicked.connect(lambda: set_robot_speed(self, speed_input.text()))
-    button_layout.addWidget(cancel_button)
-    button_layout.addWidget(change_speed_button)
-
-    layout.addLayout(button_layout)
-    speed_input.setFocus()
-    return page
-
-
-def post_manual_controls(self) -> QWidget:
     page = QWidget()
     layout = QVBoxLayout(page)
     return page
 
 
 def post_storage_display(self) -> QWidget:
+    """
+    Post the storage display widget to the main window.
+
+    Args:
+        self: The main window object.
+
+    Returns:
+        QWidget: The widget containing the storage display interface.
+    """
     page = QWidget()
     layout = QVBoxLayout(page)
+
+    bars_container = QHBoxLayout()
+    bars_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    bars_container.setSpacing(30)
+
+    self.colors = [
+        ("Yellow", "#FFFF44"),
+        ("Red", "#FF4444"),
+        ("Blue", "#4444FF"),
+        ("Green", "#44FF44")
+    ]
+
+    self.storage_labels = []
+    self.storage_blocks = []
+
+    for idx, (color_name, color_hex) in enumerate(self.colors):
+        bar_container = QVBoxLayout()
+        bar_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        color_label = QLabel(f"{color_name}\n{self.storage_counts[idx]}/5")
+        color_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        color_label.setStyleSheet("font-weight: bold; margin-bottom: 10px;")
+        bar_container.addWidget(color_label)
+        self.storage_labels.append(color_label)
+
+        blocks_layout = QVBoxLayout()
+        blocks_layout.setSpacing(2)
+        blocks_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        blocks_for_color = []
+        for i in range(5):
+            block = QLabel()
+            block.setFixedSize(40, 40)
+            blocks_layout.addWidget(block)
+            blocks_for_color.append(block)
+
+        self.storage_blocks.append(blocks_for_color)
+        bar_container.addLayout(blocks_layout)
+
+        button_layout = QVBoxLayout()
+        button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        button_layout.setSpacing(5)
+
+        plus_button = QPushButton("+")
+        plus_button.setFixedSize(40, 40)
+        plus_button.clicked.connect(lambda checked, i=idx: increase_storage(self, i))
+
+        minus_button = QPushButton("-")
+        minus_button.setFixedSize(40, 40)
+        minus_button.clicked.connect(lambda checked, i=idx: decrease_storage(self, i))
+
+        button_layout.addWidget(plus_button)
+        button_layout.addWidget(minus_button)
+        bar_container.addLayout(button_layout)
+
+        bar_widget = QWidget()
+        bar_widget.setLayout(bar_container)
+        bars_container.addWidget(bar_widget)
+
+    layout.addLayout(bars_container)
+    layout.addStretch()
+    update_storage_display(self)
+    return page
+
+
+def post_settings(self) -> QWidget:
+    """
+    Post the settings widget to the main window.
+
+    Args:
+        self: The main window object.
+
+    Returns:
+        QWidget: The widget containing the settings interface.
+    """
+    page = QWidget()
+    layout = QVBoxLayout(page)
+
+    dark_mode_wrapper = QHBoxLayout()
+    dark_mode_wrapper.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    dark_mode_label = QLabel("Dark Mode")
+    dark_mode_toggle = ModernToggle()
+    dark_mode_toggle.set_checked(read_config(self)["ui"]["dark_mode"])
+    dark_mode_toggle.toggled.connect(lambda: save_config(self, dark_mode=dark_mode_toggle.is_checked()))
+    dark_mode_wrapper.addWidget(dark_mode_label)
+    dark_mode_wrapper.addWidget(dark_mode_toggle)
+    layout.addLayout(dark_mode_wrapper)
+
+    grid_layout = QGridLayout()
+    grid_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    com_port_label = QLabel("COM Port")
+    self.com_port_input = QLineEdit()
+    grid_layout.addWidget(com_port_label, 0, 0)
+    grid_layout.addWidget(self.com_port_input, 0, 1)
+
+    speed_label = QLabel("Speed")
+    self.speed_input = QLineEdit()
+    grid_layout.addWidget(speed_label, 1, 0)
+    grid_layout.addWidget(self.speed_input, 1, 1)
+
+    grid_layout.setColumnMinimumWidth(1, 150)
+    grid_layout.setColumnStretch(1, 1)
+
+    layout.addLayout(grid_layout)
+
+    set_settings(self)
+
+    button_wrapper = QHBoxLayout()
+    button_wrapper.setAlignment(Qt.AlignmentFlag.AlignBottom)
+    cancel_button = QPushButton("Cancel")
+    cancel_button.clicked.connect(lambda: set_settings(self))
+    save_button = QPushButton("Save")
+    save_button.clicked.connect(lambda: save_config(self, com_port = self.com_port_input.text(), speed = int(self.speed_input.text())))
+    button_wrapper.addWidget(cancel_button)
+    button_wrapper.addWidget(save_button)
+    layout.addLayout(button_wrapper)
+
     return page

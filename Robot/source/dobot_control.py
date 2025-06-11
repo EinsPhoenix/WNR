@@ -1,7 +1,7 @@
 from math import sqrt, pow, atan2, cos, sin
 
 import dll.DobotDllType as dobot_type
-
+from utils import read_config, increase_storage
 
 CON_STR = {
     dobot_type.DobotConnect.DobotConnect_NoError:  "DobotConnect_NoError",
@@ -11,16 +11,18 @@ CON_STR = {
 
 
 class DoBotControl():
-    def __init__(self, homeX: float = 300, homeY: float = 0, homeZ: float = 0, speed: int = 500) -> None:
+    def __init__(self, main_window: object, homeX: float = 300, homeY: float = 0, homeZ: float = 0, speed: int = 500) -> None:
         """
         Initialize the DoBotControl class.
 
         Args:
+            main_window (object): The main window object.
             homeX (float, optional): The X coordinate of the home position. Default is 300.
             homeY (float, optional): The Y coordinate of the home position. Default is 0.
             homeZ (float, optional): The Z coordinate of the home position. Default is 0.
             speed (int, optional): The speed of the robot. Default is 500.
         """
+        self.main_window = main_window
         self.suction: bool = False
         self.api = dobot_type.load()
         self.homeX: float = homeX
@@ -29,10 +31,11 @@ class DoBotControl():
         self.connected: bool = False
         self.dobot_connect()
         self.set_speed(speed)
-        self.green_storage: list[tuple[float, float], int] = [(0, 300), 0]
-        self.blue_storage: list[tuple[float, float], int] = [(50, 300), 0]
-        self.red_storage: list[tuple[float, float], int] = [(0, -300), 0]
-        self.yellow_storage: list[tuple[float, float], int] = [(50, -300), 0]
+        self.color_list: list[str] = ["blue", "green", "red", "yellow"]
+        self.green_storage: list[tuple[float, float], int] = [(0, 300)]
+        self.blue_storage: list[tuple[float, float], int] = [(50, 300)]
+        self.red_storage: list[tuple[float, float], int] = [(0, -300)]
+        self.yellow_storage: list[tuple[float, float], int] = [(50, -300)]
 
     def __del__(self) -> None:
         """Destructor for the DoBotControl class. Disconnects the Dobot device."""
@@ -49,7 +52,7 @@ class DoBotControl():
             joint_acceleration (int, optional): The joint acceleration for the robot. Default is 200.
         """
         if not self.connected:
-            state = dobot_type.ConnectDobot(self.api, "", 115200)[0]
+            state = dobot_type.ConnectDobot(self.api, read_config(self.main_window)["robot"]["com_port"], 115200)[0]
             if state == dobot_type.DobotConnect.DobotConnect_NoError:
                 dobot_type.SetQueuedCmdClear(self.api)
                 dobot_type.SetHOMEParams(self.api, self.homeX, self.homeY, self.homeZ, 0, isQueued=1)
@@ -186,9 +189,8 @@ class DoBotControl():
         """
         # FIXME: Check if hight is good
         storage_factor: int = 30
-        target_storage = getattr(self, f"{color}_storage")
-        storage_x, storage_y = target_storage[0]
-        storage_level: int = target_storage[1]
+        storage_x, storage_y = getattr(self, f"{color}_storage")
+        storage_level: int = self.main_window.storage_counts[self.color_list.index(color)]
         storage_z: float = storage_level * storage_factor
         storage_radius: float = sqrt(pow(storage_x, 2) + pow(storage_y, 2))
         target_radius: float = storage_radius - 50
@@ -202,7 +204,7 @@ class DoBotControl():
         self.move_to_position(storage_x, storage_y, storage_z)
         self.suck(False)
         self.move_to_position(storage_x, storage_y, storage_z + storage_factor)
-        getattr(self, f"{color}_storage")[1] += 1
+        increase_storage(self.main_window, self.color_list.index(color))
         self.move_to_position(target_x, target_y, storage_z + storage_factor)
         self.move_home()
 

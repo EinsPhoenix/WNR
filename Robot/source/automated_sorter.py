@@ -4,16 +4,17 @@ from dobot_control import DoBotControl
 from utils import send_message
 
 class AutomatedSorter(DoBotControl):
-    def __init__(self, speed: int = 500, host: str = "localhost", port: int = 65432) -> None:
+    def __init__(self, main_window: object, speed: int = 500, host: str = "localhost", port: int = 65432) -> None:
         """
         Initialize the AutomatedSorter class.
 
         Args:
+            main_window (object): The main window object.
             speed (int, optional): The speed of the robot. Default is 500.
             host (str, optional): The host address for communication. Default is "localhost".
             port (int, optional): The port number for communication. Default is 65432.
         """
-        super().__init__(speed=speed)
+        super().__init__(main_window, speed=speed)
         self.host = host
         self.port = port
 
@@ -83,47 +84,6 @@ def connect_to_dobot(self) -> None:
     Args:
         self: The main window object.
     """
-    # FIXME: Entkommentieren, wenn ich fertig getestet habe
-    # self.sorter = AutomatedSorter()
+    # FIXME: Entkommentieren
+    # self.sorter = AutomatedSorter(self)
     self.post_main_widget()
-
-
-if __name__ == "__main__":
-    sorter = AutomatedSorter()
-    while True:
-        print("\n------------------------------------------")
-        print("Main menu controls:")
-        print("    calibrate: Calibrate camera")
-        print("    sort: Start sorting")
-        print("    home: Move to home position")
-        print("    speed: Change speed")
-        print("    storage: Show storage status (not implemented)")
-        print("    esc: Exit")
-        print("---------------------------------------------------\n")
-        command = input("Enter command: ").strip().lower()
-        if command == "esc":
-            print("Exiting...")
-            break
-        elif command == "calibrate":
-            print("Calibrating camera...")
-            sorter.calibrate_camera()
-        elif command == "sort":
-            print("Starting sorting...")
-            sorter.start_sorting()
-        elif command == "home":
-            print("Moving to home position...")
-            sorter.move_home()
-        elif command == "speed":
-            while True:
-                try:
-                    speed = int(input("Enter new speed: "))
-                except ValueError:
-                    print("Invalid speed. Please enter a number.")
-                else:
-                    sorter.set_speed(speed)
-                    print(f"Speed set to {speed}.")
-                    break
-        elif command == "storage":
-            print("Storage status is not implemented yet.")
-        else:
-            print(f"Unknown command: {command}. Please try again.")

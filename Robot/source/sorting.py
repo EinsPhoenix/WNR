@@ -3,7 +3,7 @@ from random import randint
 
 from PySide6.QtCore import Signal, QThread
 
-from utils import remove_warning
+from utils import remove_warning, read_config
 
 class SortingWorker(QThread):
     label = Signal(str)
@@ -76,6 +76,7 @@ def start_sorting_worker(self) -> None:
         return
     else:
         self.robot_busy = True
+        self.sorter.set_speed(read_config(self)["robot"]["speed"])
     if hasattr(self, "sorting_worker"):
         self.sorting_worker.stop()
         self.sorting_worker.wait()

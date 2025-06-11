@@ -1,0 +1,9 @@
+{
+    "ui": {
+        "dark_mode": true
+    },
+    "robot": {
+        "com_port": "COM5",
+        "speed": 500
+    }
+}
