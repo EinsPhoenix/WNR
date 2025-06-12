@@ -6,15 +6,19 @@ from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPush
 
 from custom_elements import ModernToggle
 from sorting import start_sorting_worker, cancel_sorting
-from utils import cancel_calibration, confirm_calibration_step, save_config, read_config, set_settings, update_storage_display, increase_storage, decrease_storage
+from utils.config import read_config, save_config
+from utils.function import cancel_calibration, confirm_calibration_step, update_storage_display, increase_storage, decrease_storage, toggle_dark_mode, set_settings
 
 
 def reset_slogan(self) -> None:
-    self.slogan_label = QLabel()
-    self.slogan_label.setPixmap(QPixmap(r".\icons\wnr_slogan.png").scaled(400, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-    self.slogan_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    self.slogan_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
-    self.all_wrapper.addWidget(self.slogan_label)
+    slogan_wrapper = QHBoxLayout()
+    slogan_wrapper.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    slogan_label = QLabel()
+    slogan_label.setPixmap(QPixmap(r".\icons\wnr_slogan.png").scaled(400, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+    slogan_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    slogan_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
+    slogan_wrapper.addWidget(slogan_label)
+    self.all_wrapper.addLayout(slogan_wrapper)
 
 
 def post_calibrate_camera(self) -> QWidget:
@@ -70,28 +74,12 @@ def post_start_sorting(self) -> QWidget:
     cancel_button = QPushButton("Cancel")
     cancel_button.clicked.connect(lambda: cancel_sorting(self))
     start_sorting_button = QPushButton("Start")
-    start_sorting_button.clicked.connect(lambda: self.sorter.start_sorting())
     start_sorting_button.clicked.connect(lambda: start_sorting_worker(self))
     button_layout.addWidget(cancel_button)
     button_layout.addWidget(start_sorting_button)
 
     layout.addLayout(button_layout)
     start_sorting_button.setFocus()
-    return page
-
-
-def post_manual_controls(self) -> QWidget:
-    """
-    Post the manual controls widget to the main window.
-
-    Args:
-        self: The main window object.
-
-    Returns:
-        QWidget: The widget containing the manual controls interface.
-    """
-    page = QWidget()
-    layout = QVBoxLayout(page)
     return page
 
 
@@ -172,6 +160,73 @@ def post_storage_display(self) -> QWidget:
     return page
 
 
+def post_camera_display(self) -> QWidget:
+    """
+    Post the camera widget to the main window.
+
+    Args:
+        self: The main window object.
+
+    Returns:
+        QWidget: The widget containing the camera interface.
+    """
+    page = QWidget()
+    layout = QVBoxLayout(page)
+    self.camera_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    self.camera_display.setMinimumSize(1600, 900)
+    layout.addWidget(self.camera_display)
+    return page
+
+
+def post_color_analysis(self) -> QWidget:
+    """
+    Post the color analysis widget to the main window.
+
+    Args:
+        self: The main window object.
+
+    Returns:
+        QWidget: The widget containing the color analysis interface.
+    """
+    page = QWidget()
+    layout = QVBoxLayout(page)
+    self.color_analysis.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    self.color_analysis.setMinimumSize(1600, 900)
+    layout.addWidget(self.color_analysis)
+    return page
+
+
+def post_color_settings(self) -> QWidget:
+    """
+    Post the color settings widget to the main window.
+
+    Args:
+        self: The main window object.
+
+    Returns:
+        QWidget: The widget containing the color settings interface.
+    """
+    page = QWidget()
+    layout = QVBoxLayout(page)
+
+    return page
+
+
+def post_manual_controls(self) -> QWidget:
+    """
+    Post the manual controls widget to the main window.
+
+    Args:
+        self: The main window object.
+
+    Returns:
+        QWidget: The widget containing the manual controls interface.
+    """
+    page = QWidget()
+    layout = QVBoxLayout(page)
+    return page
+
+
 def post_settings(self) -> QWidget:
     """
     Post the settings widget to the main window.
@@ -190,28 +245,80 @@ def post_settings(self) -> QWidget:
     dark_mode_label = QLabel("Dark Mode")
     dark_mode_toggle = ModernToggle()
     dark_mode_toggle.set_checked(read_config(self)["ui"]["dark_mode"])
-    dark_mode_toggle.toggled.connect(lambda: save_config(self, dark_mode=dark_mode_toggle.is_checked()))
+    dark_mode_toggle.toggled.connect(lambda: toggle_dark_mode(self, dark_mode=dark_mode_toggle.is_checked()))
     dark_mode_wrapper.addWidget(dark_mode_label)
     dark_mode_wrapper.addWidget(dark_mode_toggle)
     layout.addLayout(dark_mode_wrapper)
 
-    grid_layout = QGridLayout()
-    grid_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    # FIXME: Hier fehlt noch die connect funktion
+        # Vielleicht kann ich das element so umdesignen, dass es wärend dem Verbindungsaufbau in der mitte stehen bleibt (loading animation)
+    db_connection_wrapper = QHBoxLayout()
+    db_connection_wrapper.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    db_connection_label = QLabel("Database Connection")
+    db_connection_toggle = ModernToggle()
+    if hasattr(self, "db") and self.db.connected:
+        db_connection_toggle.set_checked(True)
+    else:
+        db_connection_toggle.set_checked(False)
+    # db_connection_toggle.toggled.connect()
+    db_connection_wrapper.addWidget(db_connection_label)
+    db_connection_wrapper.addWidget(db_connection_toggle)
+    layout.addLayout(db_connection_wrapper)
+
+    grid_wrapper = QHBoxLayout()
+    left_grid_layout = QGridLayout()
+    right_grid_layout = QGridLayout()
+    left_grid_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    right_grid_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     com_port_label = QLabel("COM Port")
     self.com_port_input = QLineEdit()
-    grid_layout.addWidget(com_port_label, 0, 0)
-    grid_layout.addWidget(self.com_port_input, 0, 1)
+    left_grid_layout.addWidget(com_port_label, 0, 0)
+    left_grid_layout.addWidget(self.com_port_input, 0, 1)
 
     speed_label = QLabel("Speed")
     self.speed_input = QLineEdit()
-    grid_layout.addWidget(speed_label, 1, 0)
-    grid_layout.addWidget(self.speed_input, 1, 1)
+    left_grid_layout.addWidget(speed_label, 1, 0)
+    left_grid_layout.addWidget(self.speed_input, 1, 1)
 
-    grid_layout.setColumnMinimumWidth(1, 150)
-    grid_layout.setColumnStretch(1, 1)
+    tcp_host_label = QLabel("TCP Host")
+    self.tcp_host_input = QLineEdit()
+    right_grid_layout.addWidget(tcp_host_label, 0, 0)
+    right_grid_layout.addWidget(self.tcp_host_input, 0, 1)
 
-    layout.addLayout(grid_layout)
+    tcp_port_label = QLabel("TCP Port")
+    self.tcp_port_input = QLineEdit()
+    right_grid_layout.addWidget(tcp_port_label, 1, 0)
+    right_grid_layout.addWidget(self.tcp_port_input, 1, 1)
+
+    stream_host_label = QLabel("Stream Host")
+    self.stream_host_input = QLineEdit()
+    left_grid_layout.addWidget(stream_host_label, 2, 0)
+    left_grid_layout.addWidget(self.stream_host_input, 2, 1)
+
+    stream_port_label = QLabel("Stream Port")
+    self.stream_port_input = QLineEdit()
+    left_grid_layout.addWidget(stream_port_label, 3, 0)
+    left_grid_layout.addWidget(self.stream_port_input, 3, 1)
+
+    db_host_label = QLabel("Database Host")
+    self.db_host_input = QLineEdit()
+    right_grid_layout.addWidget(db_host_label, 2, 0)
+    right_grid_layout.addWidget(self.db_host_input, 2, 1)
+
+    db_port_label = QLabel("Database Port")
+    self.db_port_input = QLineEdit()
+    right_grid_layout.addWidget(db_port_label, 3, 0)
+    right_grid_layout.addWidget(self.db_port_input, 3, 1)
+
+    left_grid_layout.setColumnMinimumWidth(1, 150)
+    left_grid_layout.setColumnStretch(1, 1)
+    right_grid_layout.setColumnMinimumWidth(1, 150)
+    right_grid_layout.setColumnStretch(1, 1)
+
+    grid_wrapper.addLayout(left_grid_layout)
+    grid_wrapper.addLayout(right_grid_layout)
+    layout.addLayout(grid_wrapper)
 
     set_settings(self)
 
@@ -220,7 +327,15 @@ def post_settings(self) -> QWidget:
     cancel_button = QPushButton("Cancel")
     cancel_button.clicked.connect(lambda: set_settings(self))
     save_button = QPushButton("Save")
-    save_button.clicked.connect(lambda: save_config(self, com_port = self.com_port_input.text(), speed = int(self.speed_input.text())))
+    save_button.clicked.connect(lambda: save_config(
+        self,
+        com_port = self.com_port_input.text(),
+        speed = int(self.speed_input.text()),
+        tcp_host = self.tcp_host_input.text(),
+        tcp_port = int(self.tcp_port_input.text()),
+        stream_host = self.stream_host_input.text(),
+        stream_port = int(self.stream_port_input.text())
+    ))
     button_wrapper.addWidget(cancel_button)
     button_wrapper.addWidget(save_button)
     layout.addLayout(button_wrapper)

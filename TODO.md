@@ -12,6 +12,7 @@
 ## Next:
 
 - Mehr settings
+    - Toggle für connection zum Pi
 
 - Vielleicht muss ich den Toggle noch kleiner machen
 
@@ -65,3 +66,5 @@
 - TODOs und FIXMEs
 
 - Ich sollte in get_next_block einbauen, dass der Roboter den Sichtbereich frei macht, wenn er keine Würfel mehr findet
+
+- Die Bilder im GUI sind unscharf

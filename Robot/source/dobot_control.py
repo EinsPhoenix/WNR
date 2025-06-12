@@ -1,7 +1,8 @@
 from math import sqrt, pow, atan2, cos, sin
 
 import dll.DobotDllType as dobot_type
-from utils import read_config, increase_storage
+from utils.config import read_config
+from utils.function import increase_storage
 
 CON_STR = {
     dobot_type.DobotConnect.DobotConnect_NoError:  "DobotConnect_NoError",

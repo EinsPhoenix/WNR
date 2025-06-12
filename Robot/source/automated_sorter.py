@@ -1,10 +1,10 @@
 from math import sqrt
 
 from dobot_control import DoBotControl
-from utils import send_message
+from utils.communication import send_message
 
 class AutomatedSorter(DoBotControl):
-    def __init__(self, main_window: object, speed: int = 500, host: str = "localhost", port: int = 65432) -> None:
+    def __init__(self, main_window: object, speed: int = 500) -> None:
         """
         Initialize the AutomatedSorter class.
 
@@ -15,8 +15,6 @@ class AutomatedSorter(DoBotControl):
             port (int, optional): The port number for communication. Default is 65432.
         """
         super().__init__(main_window, speed=speed)
-        self.host = host
-        self.port = port
 
     def get_next_block(self) -> tuple[float, float, str]:
         """
@@ -75,15 +73,3 @@ class AutomatedSorter(DoBotControl):
         getattr(self, f"{color}_storage")[1] += 1
         self.move_to_position(target_x, target_y, storage_z + storage_factor)
         self.move_home()
-
-
-def connect_to_dobot(self) -> None:
-    """
-    Connect to the Dobot device and initialize the sorter.
-
-    Args:
-        self: The main window object.
-    """
-    # FIXME: Entkommentieren
-    # self.sorter = AutomatedSorter(self)
-    self.post_main_widget()

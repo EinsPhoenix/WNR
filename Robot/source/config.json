@@ -5,5 +5,17 @@
     "robot": {
         "com_port": "COM5",
         "speed": 500
+    },
+    "tcp": {
+        "host": "localhost",
+        "port": 65432
+    },
+    "stream": {
+        "host": "localhost",
+        "port": 9999
+    },
+    "db": {
+        "host": "localhost",
+        "port": 12345
     }
 }

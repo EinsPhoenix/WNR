@@ -1,13 +1,17 @@
+import asyncio
 from sys import argv, exit, platform
 
 from PySide6.QtCore import QRect, QEvent
 from PySide6.QtGui import QIcon, QFontMetrics, Qt, QPixmap
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QVBoxLayout, QGroupBox, QHBoxLayout, QStackedWidget, QSizePolicy
+from qasync import QEventLoop
 
-from automated_sorter import connect_to_dobot
 from custom_elements import CustomSidebar, GlobalEventListener, ModernToggle
-from gui import reset_slogan, post_calibrate_camera, post_start_sorting, post_manual_controls, post_storage_display, post_settings
-from utils import delete_layout_items, resize_window, remove_warning, set_style_sheet
+from gui import reset_slogan, post_calibrate_camera, post_start_sorting, post_storage_display, post_camera_display, post_color_analysis, post_color_settings, post_manual_controls, post_settings
+from utils.communication import connect_to_everything
+from utils.config import read_config
+from utils.energy_price_fetch import EnergyPriceFetcher
+from utils.gui import delete_layout_items, set_style_sheet, resize_window, remove_warning, set_title_bar_color
 
 
 class MainWindow(QMainWindow):
@@ -27,6 +31,12 @@ class MainWindow(QMainWindow):
         self.submenu_mode = False
         self.storage_counts = [0, 0, 0, 0]
         self.config_path = "config.json"
+        config = read_config(self)
+        self.tcp_host = config["tcp"]["host"]
+        self.tcp_port = config["tcp"]["port"]
+        self.camera_display = QLabel("Sorry, the camera is not available yet.")
+        self.color_analysis = QLabel("Sorry, the camera is not available yet.")
+        self.fetcher = EnergyPriceFetcher()
         set_style_sheet(self)
         self.setWindowTitle("WNR Robot Controller")
         self.setWindowFlags(Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.CustomizeWindowHint)
@@ -45,9 +55,7 @@ class MainWindow(QMainWindow):
         self.all_wrapper = QVBoxLayout()
         self.main_wrapper.addLayout(self.all_wrapper)
 
-        self.post_connection_menu()
-
-    def post_connection_menu(self) -> None:
+    async def post_connection_menu(self) -> None:
         """Posts the connection menu to the main window."""
         reset_slogan(self)
 
@@ -56,7 +64,7 @@ class MainWindow(QMainWindow):
         self.connection_group.setLayout(self.connection_layout)
 
         self.connection_button = QPushButton("Connect")
-        self.connection_button.clicked.connect(lambda: connect_to_dobot(self))
+        self.connection_button.clicked.connect(lambda: connect_to_everything(self))
         self.connection_layout.addWidget(self.connection_button)
         self.all_wrapper.addWidget(self.connection_group)
         resize_window(self)
@@ -71,15 +79,18 @@ class MainWindow(QMainWindow):
         self.logo_label.setPixmap(QPixmap(r".\icons\wnr_logo.png").scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.sidebar_wrapper.addWidget(self.logo_label)
 
-        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Manual controls", "Storage status", "Settings", "Exit"])
+        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Storage status", "Camera", "Color analysis", "Color settings", "Manual controls", "Settings", "Exit"])
         self.sidebar.setFixedWidth(250)
         self.sidebar.tabChanged.connect(self.on_tab_changed)
 
         self.content_stack = QStackedWidget()
         self.content_stack.addWidget(post_calibrate_camera(self))
         self.content_stack.addWidget(post_start_sorting(self))
-        self.content_stack.addWidget(post_manual_controls(self))
         self.content_stack.addWidget(post_storage_display(self))
+        self.content_stack.addWidget(post_camera_display(self))
+        self.content_stack.addWidget(post_color_analysis(self))
+        self.content_stack.addWidget(post_color_settings(self))
+        self.content_stack.addWidget(post_manual_controls(self))
         self.content_stack.addWidget(post_settings(self))
 
         self.sidebar.buttons[-1].clicked.connect(self.app.quit)
@@ -165,18 +176,23 @@ class MainWindow(QMainWindow):
         set_style_sheet(self)
 
 
-def main() -> None:
+async def main() -> None:
     """Main function of the script. Starts and styles the GUI."""
     if platform == "win32":
         from ctypes import windll
         windll.shell32.SetCurrentProcessExplicitAppUserModelID("WNR.App.1.0")
     app = QApplication(argv)
     app.setWindowIcon(QIcon(r".\icons\wnr_logo.png"))
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
     main_window = MainWindow(app)
+    await main_window.post_connection_menu()
     main_window.show()
-    # set_title_bar_color(main_window)
-    exit(app.exec())
+    set_title_bar_color(main_window)
+    # exit(app.exec())
+    with loop:
+        return loop.run_forever()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
