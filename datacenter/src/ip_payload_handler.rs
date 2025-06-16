@@ -97,7 +97,7 @@ async fn handle_robotdata(
 ) -> Result<String, String> {
     if let Some(data) = json.get("data") {
         let primary_conn = db_handler.get_main_db().await;
-      
+        
         match create_new_nodes(data, &primary_conn).await {
             Ok(0) => {
                 Ok("No new nodes created (data might be empty or nodes already exist)".to_string())

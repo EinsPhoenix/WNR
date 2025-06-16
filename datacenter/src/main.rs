@@ -30,7 +30,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
                 timestamp, record.level(), message
             ));
         })
-        .level(log::LevelFilter::Info)
+        .level(log::LevelFilter::Error)
         .chain(std::io::stdout())
         .chain(fern::log_file("error.log")?)
         .apply()?;
@@ -89,7 +89,7 @@ async fn main() -> io::Result<()> {
         Err(_) => "unknown".to_string(),
     };
 
-    info!("\n \n !!!TCP is listening on {}:12345!!! \n", local_ip);
+    error!("\n \n !!!TCP is listening on {}:12345!!! \n", local_ip);
 
     loop {
         match listener.accept().await {
