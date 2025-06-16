@@ -32,6 +32,11 @@ pub async fn process_json(
             },
             Some("robotdata") => {
                 let result = handle_robotdata(json, db_handler, mqtt_client).await;
+                let response_to_log = match &result {
+                    Ok(msg) => json!({ "status": "success", "message": msg }),
+                    Err(err) => json!({ "status": "error", "message": err }),
+                };
+                info!("Sending response to TCP client for robotdata: {}", response_to_log);
                 send_response(socket, &result).await?;
                 Ok(())
             },
@@ -227,11 +232,9 @@ async fn send_error(socket: &mut TcpStream, error_msg: &str) -> Result<(), Strin
 }
 
 async fn send_json_response(socket: &mut TcpStream, json: &Value) -> Result<(), String> {
+    info!("Sending response to TCP client: {}", json);
     match socket.write_all(json.to_string().as_bytes()).await {
         Ok(_) => {
-            if let Err(e) = socket.write_all(b"\n").await {
-                return Err(format!("Error sending newline: {}", e));
-            }
             Ok(())
         },
         Err(e) => Err(format!("Error sending response: {}", e)),
