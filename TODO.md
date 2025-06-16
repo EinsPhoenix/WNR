@@ -1,5 +1,7 @@
 # TODO
 
+17
+
 ## GUI implementierung:
 
 - Farbfilter und Kamerabilder in das GUI integrieren
@@ -11,6 +13,16 @@
 
 ## Next:
 
+- Wenn der server stirbt bin ich noch "connected"
+
+- Tab index neuer Fenster reparieren
+
+- Wenn das GUI geschlossen wird muss ich alles richtig disconnecten
+
+- Settings save aktualisieren
+
+- Kamerabild im GUI zurücksetzen, wenn für 3 sec kein neues Bild mehr gekommen ist
+
 - Mehr settings
     - Toggle für connection zum Pi
 
@@ -21,12 +33,6 @@
 - Mein Color Scheme stimmt noch nicht
     - Dark Theme richtig auf die Farben im Logo anpassen
     - Light Theme wie die Webpage
-
-- Menüoption "Lagerverwaltung"
-    - Anzeigen der Füllstände
-        - Vier farbige vertikale Balken
-    - Editieren der Füllstände
-        - Wenn ein Würfel mal runterfällt oder der Turm kippt
 
 ## Test:
 

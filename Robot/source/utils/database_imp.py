@@ -4,7 +4,7 @@ import uuid
 
 from utils.config import read_config
 
-class Database_Imp:
+class DatabaseImp:
     def __init__(self, main_window, password="1234"):
         self.main_window = main_window
         self.password = password
@@ -98,7 +98,6 @@ class Database_Imp:
             response = await self.receive_response()
             return response
         except Exception as e:
-            await self.disconnect()
             return None
 
     async def generate_robot_struct(self, color, temperature, humidity, timestamp, energy_consume, energy_cost):

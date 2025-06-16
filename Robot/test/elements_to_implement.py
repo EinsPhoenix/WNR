@@ -1,4 +1,5 @@
 import sys
+from qt_material import apply_stylesheet
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -10,10 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QAbstractSlider,
     QColorDialog,
-    QColormap,
-    QGesture,
-    QProgressDialog,
-    QRubberBand
+    QProgressDialog
 )
 
 class MainWindow(QMainWindow):
@@ -41,6 +39,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
 app = QApplication(sys.argv)
+apply_stylesheet(app, theme="WNR_dark.xml", invert_secondary=False, extra={"pyside6": True})
 window = MainWindow()
 window.show()
 app.exec()

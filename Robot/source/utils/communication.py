@@ -1,8 +1,7 @@
+import asyncio
 from json import dumps, loads
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
-
-from asyncio import create_task
 
 from stream.main import main
 
@@ -14,25 +13,21 @@ def connect_to_everything(self) -> None:
     Args:
         self: The main window object.
     """
-    # FIXME: Entkommentieren
-    # from automated_sorter import AutomatedSorter
-    # self.sorter = AutomatedSorter(self)
+    from automated_sorter import AutomatedSorter
+    self.sorter = AutomatedSorter(self)
     self.stream_thread = Thread(target=main, daemon=True, args=(self,))
     self.stream_thread.start()
-    create_task(connect_to_db(self))
+
+    def run_async_scheduler() -> None:
+        """Run the async scheduler in a separate thread."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.fetcher.start_scheduler())
+        loop.close()
+
+    self.fetcher_thread = Thread(target=run_async_scheduler, daemon=True)
+    self.fetcher_thread.start()
     self.post_main_widget()
-
-
-async def connect_to_db(self) -> None:
-    """
-    Connect to the database server.
-
-    Args:
-        self: The main window object.
-    """
-    from utils.database_imp import Database_Imp
-    self.db = Database_Imp(self)
-    await self.db.connect()
 
 
 def send_message(self, message_to_send: dict) -> str | None:

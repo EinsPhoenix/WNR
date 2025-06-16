@@ -69,7 +69,7 @@ def save_config(
         if stream_port < 0 or stream_port > 65535:
             stream_port = 9999
     if db_host is not None:
-        config["db"]["ip"] = db_host
+        config["db"]["host"] = db_host
     if db_port is not None:
         if db_port < 0 or db_port > 65535:
             db_port = 12345

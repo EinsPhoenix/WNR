@@ -3,14 +3,15 @@ import aiohttp
 import json
 import os
 from datetime import datetime, timedelta
-from utils.database_imp import Database_Imp
+from utils.database_imp import DatabaseImp
 
 
 class EnergyPriceFetcher:
-    def __init__(self, json_file_path="utils/energy_data.json"):
+    def __init__(self, parent, json_file_path="utils/energy_data.json"):
+        self.parent = parent
         self.json_file_path = json_file_path
         self.api_url = "https://api.awattar.de/v1/marketdata"
-    
+
     def get_timestamps(self):
         """Generate start (now) and end (48 hours later) timestamps in milliseconds."""
         now = datetime.now()
@@ -18,12 +19,12 @@ class EnergyPriceFetcher:
         start_timestamp = int(now.timestamp() * 1000)
         end_timestamp = int(end_time.timestamp() * 1000)
         return start_timestamp, end_timestamp
-    
+
     def timestamp_to_datetime_string(self, timestamp_ms):
         """Convert timestamp in milliseconds to datetime string format."""
         dt = datetime.fromtimestamp(timestamp_ms / 1000)
         return dt.strftime("%Y-%m-%d %H:%M:%S")
-    
+
     def process_api_data_for_database(self, api_data):
         """Process API response data for database insertion."""
         if not api_data or 'data' not in api_data:
@@ -36,7 +37,7 @@ class EnergyPriceFetcher:
             }
             processed_data.append(processed_entry)
         return processed_data
-    
+
     def should_fetch_data(self):
         """Check if data should be fetched based on last fetch time."""
         if not os.path.exists(self.json_file_path):
@@ -57,7 +58,7 @@ class EnergyPriceFetcher:
                 return False
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             return True
-    
+
     async def fetch_energy_data(self):
         """Fetch energy data from the API."""
         start_timestamp, end_timestamp = self.get_timestamps()
@@ -84,7 +85,7 @@ class EnergyPriceFetcher:
                         return None
         except Exception as e:
             return None
-    
+
     def save_data(self, data):
         """Save data to JSON file."""
         try:
@@ -93,7 +94,7 @@ class EnergyPriceFetcher:
             return True
         except Exception as e:
             return False
-    
+
     def load_data(self):
         """Load data from JSON file."""
         if not os.path.exists(self.json_file_path):
@@ -103,13 +104,12 @@ class EnergyPriceFetcher:
                 return json.load(f)
         except Exception as e:
             return None
-    
+
     async def send_to_database(self, processed_data):
         """Send processed energy data to database."""
-        db = Database_Imp()
         try:
-            if await db.connect():
-                response = await db.generate_energydata_struct(processed_data)
+            if await self.parent.db.connect():
+                response = await self.parent.db.generate_energydata_struct(processed_data)
                 if response and response.get('status') == 'success':
                     return True
                 else:
@@ -118,9 +118,7 @@ class EnergyPriceFetcher:
                 return False
         except Exception as e:
             return False
-        finally:
-            await db.disconnect()
-    
+
     async def run_daily_fetch(self):
         """Main method to run the daily fetch process."""
         if self.should_fetch_data():
@@ -129,11 +127,8 @@ class EnergyPriceFetcher:
                 if self.save_data(data):
                     processed_data = self.process_api_data_for_database(data['api_response'])
                     if processed_data:
-                        db_success = await self.send_to_database(processed_data)
-                        if db_success:
-                            return True
-                        else:
-                            return True
+                        await self.send_to_database(processed_data)
+                        return True
                     else:
                         return False
                 else:
@@ -142,7 +137,7 @@ class EnergyPriceFetcher:
                 return False
         else:
             return True
-    
+
     async def start_scheduler(self):
         """Start the scheduler that runs once per day."""
         while True:

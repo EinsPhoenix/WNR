@@ -52,7 +52,7 @@ class AutomatedSorter(DoBotControl):
         storage_factor: int = 30
         self.move_to_position(block_x, block_y, storage_factor)
         self.move_to_position(block_x, block_y, 0)
-        self.suck(True)
+        self.bot.suck(True)
         self.move_to_position(block_x, block_y, storage_factor)
         target_storage = getattr(self, f"{color}_storage")
         storage_x, storage_y = target_storage[0]
@@ -68,7 +68,7 @@ class AutomatedSorter(DoBotControl):
         self.move_to_position(target_x, target_y, storage_z + storage_factor)
         self.move_to_position(storage_x, storage_y, storage_z + storage_factor)
         self.move_to_position(storage_x, storage_y, storage_z)
-        self.suck(False)
+        self.bot.suck(False)
         self.move_to_position(storage_x, storage_y, storage_z + storage_factor)
         getattr(self, f"{color}_storage")[1] += 1
         self.move_to_position(target_x, target_y, storage_z + storage_factor)

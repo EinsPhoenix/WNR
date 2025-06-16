@@ -4,9 +4,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QWidget, QGridLayout
 
-from custom_elements import ModernToggle
 from sorting import start_sorting_worker, cancel_sorting
 from utils.config import read_config, save_config
+from utils.custom_elements import CustomToggle
 from utils.function import cancel_calibration, confirm_calibration_step, update_storage_display, increase_storage, decrease_storage, toggle_dark_mode, set_settings
 
 
@@ -243,26 +243,31 @@ def post_settings(self) -> QWidget:
     dark_mode_wrapper = QHBoxLayout()
     dark_mode_wrapper.setAlignment(Qt.AlignmentFlag.AlignCenter)
     dark_mode_label = QLabel("Dark Mode")
-    dark_mode_toggle = ModernToggle()
+    dark_mode_toggle = CustomToggle()
     dark_mode_toggle.set_checked(read_config(self)["ui"]["dark_mode"])
     dark_mode_toggle.toggled.connect(lambda: toggle_dark_mode(self, dark_mode=dark_mode_toggle.is_checked()))
     dark_mode_wrapper.addWidget(dark_mode_label)
     dark_mode_wrapper.addWidget(dark_mode_toggle)
     layout.addLayout(dark_mode_wrapper)
 
-    # FIXME: Hier fehlt noch die connect funktion
-        # Vielleicht kann ich das element so umdesignen, dass es wärend dem Verbindungsaufbau in der mitte stehen bleibt (loading animation)
+    dobot_connection_wrapper = QHBoxLayout()
+    dobot_connection_wrapper.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    dobot_connection_label = QLabel("DoBot Connection")
+    self.dobot_connection_toggle = CustomToggle(True, self.sorter.dobot_connect, self.sorter.dobot_disconnect)
+    self.dobot_connection_toggle._checked = False
+    self.dobot_connection_toggle.toggle()
+    dobot_connection_wrapper.addWidget(dobot_connection_label)
+    dobot_connection_wrapper.addWidget(self.dobot_connection_toggle)
+    layout.addLayout(dobot_connection_wrapper)
+
     db_connection_wrapper = QHBoxLayout()
     db_connection_wrapper.setAlignment(Qt.AlignmentFlag.AlignCenter)
     db_connection_label = QLabel("Database Connection")
-    db_connection_toggle = ModernToggle()
-    if hasattr(self, "db") and self.db.connected:
-        db_connection_toggle.set_checked(True)
-    else:
-        db_connection_toggle.set_checked(False)
-    # db_connection_toggle.toggled.connect()
+    self.db_connection_toggle = CustomToggle(True, self.db.connect, self.db.disconnect)
+    self.db_connection_toggle._checked = False
+    self.db_connection_toggle.toggle()
     db_connection_wrapper.addWidget(db_connection_label)
-    db_connection_wrapper.addWidget(db_connection_toggle)
+    db_connection_wrapper.addWidget(self.db_connection_toggle)
     layout.addLayout(db_connection_wrapper)
 
     grid_wrapper = QHBoxLayout()
@@ -334,7 +339,9 @@ def post_settings(self) -> QWidget:
         tcp_host = self.tcp_host_input.text(),
         tcp_port = int(self.tcp_port_input.text()),
         stream_host = self.stream_host_input.text(),
-        stream_port = int(self.stream_port_input.text())
+        stream_port = int(self.stream_port_input.text()),
+        db_host = self.db_host_input.text(),
+        db_port = int(self.db_port_input.text())
     ))
     button_wrapper.addWidget(cancel_button)
     button_wrapper.addWidget(save_button)
