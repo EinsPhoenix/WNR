@@ -22,6 +22,16 @@ mod db_operations;
 
 //log init
 fn setup_logger() -> Result<(), fern::InitError> {
+    dotenv().ok();
+    let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+    let level_filter = match log_level.to_lowercase().as_str() {
+        "error" => log::LevelFilter::Error,
+        "warn" => log::LevelFilter::Warn,
+        "info" => log::LevelFilter::Info,
+        "debug" => log::LevelFilter::Debug,
+        "trace" => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Info,
+    };
     Dispatch::new()
         .format(|out, message, record| {
             let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
@@ -30,7 +40,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
                 timestamp, record.level(), message
             ));
         })
-        .level(log::LevelFilter::Error)
+        .level(level_filter)
         .chain(std::io::stdout())
         .chain(fern::log_file("error.log")?)
         .apply()?;
