@@ -264,7 +264,9 @@
         /* background: var(--pastel-green-color); */
         /* -webkit-background-clip: text; */
         /* -webkit-text-fill-color: transparent; */
-        color: var(--pastel-green-color);
+
+        /* color: var(--pastel-green-color); */
+        color: rgb(194, 194, 194);
         text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8);
         font-weight: bolder;
         font-size: 1.2rem;

@@ -40,15 +40,17 @@
       </div>
       
       <div class="group2">
-        {#each $mqttData as msg}
-          <button class="btn">
-            <div class="item">
-              [{new Date(msg.timestamp).toLocaleTimeString()}]
-              Item
-              #{msg.part_number}
-              produced
-            </div>
-          </button>
+        {#each $mqttData as msg, i}
+          {#if msg.data && msg.data.length > 0}
+            <button class="btn">
+              <div class="item">
+                [{new Date(msg.data[0].timestamp).toLocaleTimeString()}]
+                Item
+                #{i + 1}
+                produced
+              </div>
+            </button>
+          {/if}
         {/each}
       </div>
 
