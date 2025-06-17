@@ -104,7 +104,7 @@ async fn main() -> io::Result<()> {
     loop {
         match listener.accept().await {
             Ok((socket, addr)) => {
-                info!("New connection from: {}", addr);
+                error!("New connection from: {}", addr);
                 let password_clone = password.clone();
                 let db_handler_clone = Arc::clone(&db_handler);
                 let mqtt_client_clone = mqtt_client.clone();

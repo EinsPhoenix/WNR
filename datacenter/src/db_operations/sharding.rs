@@ -133,7 +133,7 @@ pub async fn get_current_max_id(graph: &Graph, increment: i64) -> Result<i64, St
 // Creates new nodes in the database across all shards using the provided data.
 // Input: data - a JSON array of items to insert, &Graph - a reference to the Neo4j graph instance.
 // Returns: Result<usize, String> - the number of successfully created nodes or an error message.
-pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, String> {
+pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<Vec<(String, i64)>, String> {
     let start_time = std::time::Instant::now();
     info!("Starting batch data insertion process");
 
@@ -145,7 +145,7 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
     let total_items = data_array.len();
     if total_items == 0 {
         info!("Received empty validated data array. No nodes will be created.");
-        return Ok(0);
+        return Ok(vec![]);
     }
 
     for (index, item) in data_array.iter().enumerate() {
@@ -166,6 +166,7 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
     const BATCH_SIZE: usize = 8000;
     let mut processed_count = 0;
     let mut errors = Vec::new();
+    let mut uuid_id_pairs = Vec::new();
 
     for batch_start in (0..total_items).step_by(BATCH_SIZE) {
         let current_batch_actual_size = std::cmp::min(BATCH_SIZE, total_items - batch_start);
@@ -182,6 +183,9 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
                 Some(mut params) => {
                     let item_id = current_id_counter;
                     current_id_counter += 1;
+
+                    let uuid = params.get("uuid").unwrap().clone();
+                    uuid_id_pairs.push((uuid, item_id));
 
                     params.insert("id".to_string(), item_id.to_string());
 
@@ -393,7 +397,7 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
 
     if errors.is_empty() {
         if processed_count == total_items {
-            Ok(processed_count)
+            Ok(uuid_id_pairs)
         } else {
             let final_error_msg = format!(
                 "Processed {} out of {} items successfully. Some items failed parameter preparation.",
@@ -401,7 +405,7 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
                 total_items
             );
             warn!("{}", final_error_msg);
-            Ok(processed_count)
+            Ok(uuid_id_pairs)
         }
     } else {
         let combined_error = format!(
@@ -412,7 +416,7 @@ pub async fn create_new_nodes(data: &Value, graph: &Graph) -> Result<usize, Stri
             errors.join("; ")
         );
         error!("{}", combined_error);
-        Ok(processed_count)
+        Ok(uuid_id_pairs)
     }
 }
 

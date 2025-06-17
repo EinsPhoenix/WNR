@@ -276,7 +276,8 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
             let response_topic = format!("rust/response/{}/add/robotdata", requesting_client_id);
             if let Some(add_data) = json_value.get("data") { 
                 match create_new_nodes(add_data, &write_conn).await {
-                    Ok(count) => {
+                    Ok(uuid_id_pairs) => {
+                        let count = uuid_id_pairs.len();
                         if count > 0 {
                             
                             let livedata_topic = "rust/response/livedata";
@@ -286,6 +287,9 @@ pub async fn process_request(client: &AsyncClient, payload: &[u8], db_handler: &
                                 "client_id": requesting_client_id,
                                 "timestamp": chrono::Utc::now().to_rfc3339(),
                                 "count": count,
+                                "ids": uuid_id_pairs.iter()
+                                    .map(|(uuid, id)| json!({"uuid": uuid, "id": id}))
+                                    .collect::<Vec<_>>(),
                                 "data": add_data
                             });
                             

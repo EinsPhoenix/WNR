@@ -74,7 +74,7 @@ class TcpClient:
         try:
             response_data = ""
 
-            while not response_data.endswith("\n"):
+            while not response_data.endswith("""status":"success"}"""):
                 chunk = self.socket.recv(buffer_size).decode("utf-8")
                 if not chunk:
                     print("INFO: Server closed the connection.")
@@ -147,8 +147,8 @@ class TcpClient:
 
 colors = ["blue", "green", "red", "yellow", "purple", "orange", "black", "white"]
 start_time = datetime(2025, 4, 22, 10, 0)
-TOTAL_ENTRIES = 5
-BATCH_SIZE = 5
+TOTAL_ENTRIES = 5000
+BATCH_SIZE = 1
 
 
 def generate_and_send_data():

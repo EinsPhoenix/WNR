@@ -99,22 +99,24 @@ async fn handle_robotdata(
         let primary_conn = db_handler.get_main_db().await;
         
         match create_new_nodes(data, &primary_conn).await {
-            Ok(0) => {
-                Ok("No new nodes created (data might be empty or nodes already exist)".to_string())
-            },
-            Ok(count) => {
-              
+            Ok(uuid_id_pairs) => {
+                let count = uuid_id_pairs.len();
+
                 if let Some(client) = mqtt_client {
                     let response_topic = "rust/response/livedata";
+                    let id_data: Vec<_> = uuid_id_pairs.iter()
+                        .map(|(uuid, id)| json!({"uuid": uuid, "id": id}))
+                        .collect();
+
                     let livedata = json!({
                         "type": "robotdata",
                         "source": "tcp",
                         "timestamp": chrono::Utc::now().to_rfc3339(),
                         "count": count,
+                        "ids": id_data,
                         "data": data
                     });
 
-                  
                     if let Err(e) = publish_result(client, response_topic, &livedata).await {
                         warn!("Failed to publish robotdata to livedata topic: {}", e);
                     } else {
