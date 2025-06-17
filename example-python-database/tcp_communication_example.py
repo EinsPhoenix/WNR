@@ -76,7 +76,7 @@ class TcpClient:
         try:
             response_data = ""
             # Read until newline is received
-            while not response_data.endswith("\n"):
+            while not response_data.endswith("""status":"success"}"""):
                 chunk = self.socket.recv(buffer_size).decode("utf-8")
                 if not chunk:  # Connection closed by server
                     print("INFO: Server closed the connection.")
