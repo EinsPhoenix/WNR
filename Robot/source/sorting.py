@@ -83,6 +83,8 @@ class SortingWorker(QThread):
 
     def _get_energy_cost(self) -> float:
         """Get the energy cost for the current sorting operation."""
+        return 187
+        # FIXME:
         with open(self.main_window.fetcher.json_file_path, 'r', encoding='utf-8') as f:
             energy_data = shared_state.energy_data
         now = int(time() * 1000)
@@ -113,13 +115,15 @@ def start_sorting_worker(self) -> None:
     Args:
         self: The main window object.
     """
-    if hasattr(self, "db") and not self.db.connected:
+    if self.db.connected:
         if self.robot_busy:
-            self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
-            return
+            # FIXME:
+            # self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
+            # return
+            pass
         else:
             self.robot_busy = True
-            self.sorter.set_speed(read_config(self)["robot"]["speed"])
+        self.sorter.set_speed(read_config(self)["robot"]["speed"])
         if hasattr(self, "sorting_worker"):
             self.sorting_worker.stop()
             self.sorting_worker.wait()

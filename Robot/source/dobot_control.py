@@ -67,10 +67,11 @@ class DoBotControl():
     async def dobot_connect(self) -> None:
         """Attempts to connect to the Dobot device."""
         try:
-            self.bot = CustomDobot(port = read_config(self.main_window)["robot"]["com_port"], verbose=False)
+            self.bot = CustomDobot(port = read_config(self.main_window)["robot"]["com_port"])
             self.connected = True
             self.set_speed(self.speed)
-        except:
+            self.move_home()
+        except Exception as e:
             self.bot = None
             self.connected = False
         return self.connected
@@ -92,8 +93,9 @@ class DoBotControl():
         Args:
             speed (int): The speed to set for the robot.
         """
-        if speed > 2000:
-            speed = 2000
+        # FIXME: Wieder wert auf 2000 setzen
+        if speed > 1000:
+            speed = 1000
         elif speed < 100:
             speed = 100
         self.speed: int = speed

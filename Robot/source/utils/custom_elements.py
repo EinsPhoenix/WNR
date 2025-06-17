@@ -337,7 +337,7 @@ class GlobalEventListener(QObject):
                     if hasattr(main_window, "worker") and main_window.worker.isRunning():
                         main_window.worker.stop()
                         main_window.worker.wait()
-                    main_window.app.quit()
+                    self.main_window.close()
                 else:
                     main_window.submenu_mode = False
                     for button in main_window.sidebar.buttons:

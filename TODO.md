@@ -1,34 +1,25 @@
 # TODO
 
-17
-
 ## GUI implementierung:
 
-- Farbfilter und Kamerabilder in das GUI integrieren
+- Farbfilter in das GUI integrieren
     - [Beispiel](/GUI_example.png)
-        - Ich sollte auch ein "Tab design" umsetzen, so dass man seinen Bereich auf der rechten Seite auswählen kann
-        - Den Nightmode selector links unten find ich auch gut
 
 - Manuelle Steuerung in GUI integrieren
 
 ## Next:
 
-- Wenn der server stirbt bin ich noch "connected"
+- Wenn sorting läuft wird das Lager nicht geupdated
 
-- Tab index neuer Fenster reparieren
+- Wenn ich einen schönen focus für CustomToggle finde kann ich die wieder in get_focusable_widgets einbinden
+
+- Wenn der server stirbt bin ich noch "connected"
 
 - Wenn das GUI geschlossen wird muss ich alles richtig disconnecten
 
-- Settings save aktualisieren
-
 - Kamerabild im GUI zurücksetzen, wenn für 3 sec kein neues Bild mehr gekommen ist
 
-- Mehr settings
-    - Toggle für connection zum Pi
-
 - Vielleicht muss ich den Toggle noch kleiner machen
-
-- Ich sollte für die Verbindung zum Roboter noch einen toggle in die Settings machen
 
 - Mein Color Scheme stimmt noch nicht
     - Dark Theme richtig auf die Farben im Logo anpassen
@@ -72,5 +63,3 @@
 - TODOs und FIXMEs
 
 - Ich sollte in get_next_block einbauen, dass der Roboter den Sichtbereich frei macht, wenn er keine Würfel mehr findet
-
-- Die Bilder im GUI sind unscharf

@@ -31,8 +31,10 @@ def confirm_calibration_step(self) -> None:
         self: The main window object.
     """
     if self.robot_busy:
-        self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
-        return
+        #FIXME:
+        # self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
+        # return
+        pass
     else:
         self.robot_busy = True
         self.sorter.set_speed(read_config(self)["robot"]["speed"])
@@ -48,7 +50,7 @@ def confirm_calibration_step(self) -> None:
         else:
             self.sorter.move_to_position(0, 300, z)
         sleep(0.5)
-        while send_message(self, {"type": "calibrate", "payload": {"number": self.current_calibration_step, "robot_pos": {"x": pos[0], "y": pos[1]}}}["status"]) == "error":
+        while send_message(self, {"type": "calibrate", "payload": {"number": self.current_calibration_step, "robot_pos": {"x": pos[0], "y": pos[1]}}})["status"] == "error":
             sleep(0.5)
         self.current_calibration_step += 1
         if self.current_calibration_step == len(self.calibrate_positions):
@@ -57,7 +59,7 @@ def confirm_calibration_step(self) -> None:
             self.calibrate_button.setText("Calibration")
         else:
             pos = self.calibrate_positions[self.current_calibration_step]
-            # self.sorter.move_to_position(*pos, z)
+            self.sorter.move_to_position(*pos, z)
             self.calibrate_label.setText(f"Calibrating position {self.current_calibration_step + 1} at ({pos[0]}, {pos[1]}, {z}).\nConfirm to continue if QR-Cube is in position.")
     self.robot_busy = False
 

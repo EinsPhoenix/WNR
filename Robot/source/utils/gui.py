@@ -2,7 +2,7 @@ from ctypes import windll, c_int, byref, sizeof
 from ctypes.wintypes import HWND, DWORD
 
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QLayout, QLayoutItem, QWidget, QVBoxLayout, QHBoxLayout, QApplication, QMainWindow
+from PySide6.QtWidgets import QLayout, QLayoutItem, QWidget, QVBoxLayout, QHBoxLayout, QApplication, QMainWindow, QLineEdit, QPushButton
 from qt_material import apply_stylesheet
 
 from utils.config import read_config
@@ -89,6 +89,28 @@ def remove_warning(self) -> None:
         if hasattr(self, "warning_text"):
             self.warning_text.setParent(None)
             del self.warning_text
+
+
+def get_focusable_widgets(layout: QWidget | QLayout | QVBoxLayout | QHBoxLayout) -> list[QWidget]:
+    """
+    Returns a list of focusable widgets in the given widget.
+
+    Args:
+        widget (QWidget): The widget to search for focusable widgets.
+
+    Returns:
+        list[QWidget]: A list of focusable widgets.
+    """
+    focusable_widgets = []
+    if layout is not None:
+        for item in layout.children():
+            if isinstance(item, (QLineEdit, QPushButton)) and item.isVisible():
+                focusable_widgets.append(item)
+            elif isinstance(item, (QWidget, QLayout, QVBoxLayout, QHBoxLayout)):
+                focusable_widgets.extend(get_focusable_widgets(item))
+            else:
+                print(f"Skipping item of type {type(item)} in layout.")
+    return focusable_widgets
 
 
 def set_style_sheet(self) -> None:

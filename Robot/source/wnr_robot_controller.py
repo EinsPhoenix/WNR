@@ -3,16 +3,18 @@ from sys import argv, platform
 
 from PySide6.QtCore import QRect, QEvent
 from PySide6.QtGui import QIcon, QFontMetrics, Qt, QPixmap
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QVBoxLayout, QGroupBox, QHBoxLayout, QStackedWidget, QSizePolicy
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QVBoxLayout, QGroupBox, QHBoxLayout, QStackedWidget, QSizePolicy
 from qasync import QEventLoop
 
+from automated_sorter import AutomatedSorter
 from gui import reset_slogan, post_calibrate_camera, post_start_sorting, post_storage_display, post_camera_display, post_color_analysis, post_color_settings, post_manual_controls, post_settings
-from utils.communication import connect_to_everything
+from stream.stream import Stream
+from utils.communication import start_fetching
 from utils.config import read_config
-from utils.custom_elements import CustomSidebar, GlobalEventListener, CustomToggle
+from utils.custom_elements import CustomSidebar, GlobalEventListener
 from utils.database_imp import DatabaseImp
 from utils.energy_price_fetch import EnergyPriceFetcher
-from utils.gui import delete_layout_items, set_style_sheet, resize_window, remove_warning, set_title_bar_color
+from utils.gui import delete_layout_items, set_style_sheet, resize_window, remove_warning, set_title_bar_color, get_focusable_widgets
 
 
 class MainWindow(QMainWindow):
@@ -37,8 +39,10 @@ class MainWindow(QMainWindow):
         self.tcp_port = config["tcp"]["port"]
         self.camera_display = QLabel("Sorry, the camera is not available yet.")
         self.color_analysis = QLabel("Sorry, the camera is not available yet.")
+        self.sorter = AutomatedSorter(self)
         self.db = DatabaseImp(self)
         self.fetcher = EnergyPriceFetcher(self)
+        self.stream = Stream(self)
         set_style_sheet(self)
         self.setWindowTitle("WNR Robot Controller")
         self.setWindowFlags(Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.CustomizeWindowHint)
@@ -66,7 +70,7 @@ class MainWindow(QMainWindow):
         self.connection_group.setLayout(self.connection_layout)
 
         self.connection_button = QPushButton("Connect")
-        self.connection_button.clicked.connect(lambda: connect_to_everything(self))
+        self.connection_button.clicked.connect(lambda: start_fetching(self))
         self.connection_layout.addWidget(self.connection_button)
         self.all_wrapper.addWidget(self.connection_group)
         resize_window(self)
@@ -81,7 +85,7 @@ class MainWindow(QMainWindow):
         self.logo_label.setPixmap(QPixmap(r".\icons\wnr_logo.png").scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.sidebar_wrapper.addWidget(self.logo_label)
 
-        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Storage status", "Camera", "Color analysis", "Color settings", "Manual controls", "Settings", "test", "Exit"])
+        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Storage status", "Camera", "Color analysis", "Color settings", "Manual controls", "Settings", "Exit"])
         self.sidebar.setFixedWidth(250)
         self.sidebar.tabChanged.connect(self.on_tab_changed)
 
@@ -94,30 +98,8 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(post_color_settings(self))
         self.content_stack.addWidget(post_manual_controls(self))
         self.content_stack.addWidget(post_settings(self))
-        async def test_schickung_alla(self):
-            response = await self.db.generate_robot_struct(
-                color="blue",
-                temperature=23.5,
-                humidity=65.2,
-                timestamp="2025-06-10 15:30:00",
-                energy_consume=12.5,
-                energy_cost=0.15
-            )
-            print(f"Response: {response}")
 
-        def test(self) -> QWidget:
-            from asyncio import create_task
-            test_widget = QWidget()
-            test_layout = QVBoxLayout(test_widget)
-            test_label = QLabel("This is DB test.")
-            test_layout.addWidget(test_label)
-            test_button = QPushButton("Test DB Connection")
-            test_button.clicked.connect(lambda: create_task(test_schickung_alla(self)))
-            test_layout.addWidget(test_button)
-            return test_widget
-        self.content_stack.addWidget(test(self))
-
-        self.sidebar.buttons[-1].clicked.connect(self.app.quit)
+        self.sidebar.buttons[-1].clicked.connect(self.close)
 
         self.sidebar_wrapper.addWidget(self.sidebar)
         self.sidebar.buttons[0].setFocus()
@@ -134,7 +116,7 @@ class MainWindow(QMainWindow):
         """
         remove_warning(self)
         self.content_stack.setCurrentIndex(index)
-        self.focusable_widgets = [child for child in self.content_stack.currentWidget().children() if isinstance(child, (QLineEdit, QPushButton, CustomToggle)) and child.isVisible()]
+        self.focusable_widgets = get_focusable_widgets(self.content_stack.currentWidget())
         try: self.focusable_widgets[0].setFocus()
         except: pass
         self.submenu_mode = True
@@ -198,6 +180,11 @@ class MainWindow(QMainWindow):
         """
         super().focusInEvent(event)
         set_style_sheet(self)
+
+    def close(self) -> None:
+        """Overrides the close method to handle the closing of the main window."""
+        # FIXME: Hier muss ich noch die Connections killen
+        super().close()
 
 
 async def main() -> None:

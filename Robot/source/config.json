@@ -3,7 +3,7 @@
         "dark_mode": true
     },
     "robot": {
-        "com_port": "COM5",
+        "com_port": "COM6",
         "speed": 500
     },
     "tcp": {
@@ -15,7 +15,7 @@
         "port": 9999
     },
     "db": {
-        "host": "localhost",
+        "host": "192.168.1.100",
         "port": 12345
     }
 }
