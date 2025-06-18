@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+		<!-- <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet"> -->
+		<!-- <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> -->
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
+
+<style>
+	html, body {
+		margin: 0;
+		padding: 0;
+		background: linear-gradient(-90deg,rgba(189, 178, 255, 1) 0%, rgb(160, 196, 255) 35%, rgba(255, 198, 255, 1) 100%);
+		background-size: 200% 200%;
+  		animation: moveGradient 20s ease infinite;
+		display: flex;
+		flex-direction: column;
+		min-block-size: 100dvb;
+		overflow: hidden;
+	}
+
+	@keyframes moveGradient {
+		0% { background-position: 0% 50%; }
+		50% { background-position: 100% 50%; }
+		100% { background-position: 0% 50%; }
+	}
+
+	@media (max-width: 768px) {
+		html, body {
+			min-block-size: 0;
+			overflow: auto;
+		}
+	}
+
+	@media (max-width: 1100px) {
+		html, body {
+			min-block-size: 0;
+			overflow: auto;
+		}
+	}
+</style>
