@@ -64,6 +64,26 @@ def confirm_calibration_step(self) -> None:
     self.robot_busy = False
 
 
+def confirm_fast_calibration_step(self, x, y) -> None:
+    """
+    Confirm the fast calibration step by moving the robot to specific positions.
+
+    Args:
+        self: The main window object.
+    """
+    if not hasattr(self, "calibrating") or self.calibrating is False:
+        self.calibrating = True
+        self.calibration_step = 0
+    while send_message(self, {"type": "calibrate", "payload": {"number": self.calibration_step, "robot_pos": {"x": x, "y": y}}})["status"] == "error":
+        sleep(0.5)
+    self.calibration_step += 1
+    if self.calibration_step == 5:
+        send_message(self, {"type": "calibrate", "payload": {"finish": True}})
+        self.calibrate_label.setText("Fast calibration finished. You can now start sorting.")
+        self.calibrating = False
+        
+
+
 def set_settings(self) -> None:
     """
     Sets the settings for the main window.

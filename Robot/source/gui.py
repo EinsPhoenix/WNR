@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPush
 from sorting import start_sorting_worker, cancel_sorting
 from utils.config import read_config, save_config
 from utils.custom_elements import CustomToggle
-from utils.function import cancel_calibration, confirm_calibration_step, update_storage_display, increase_storage, decrease_storage, toggle_dark_mode, set_settings
+from utils.function import cancel_calibration, confirm_calibration_step, update_storage_display, increase_storage, decrease_storage, toggle_dark_mode, set_settings, confirm_fast_calibration_step
 
 
 def reset_slogan(self) -> None:
@@ -353,6 +353,45 @@ def post_settings(self) -> QWidget:
     ))
     button_wrapper.addWidget(cancel_button)
     button_wrapper.addWidget(save_button)
+    layout.addLayout(button_wrapper)
+
+    return page
+
+
+def post_fast_calibrate(self):
+    """
+    Post the fast calibration widget to the main window.
+
+    Args:
+        self: The main window object.
+
+    Returns:
+        QWidget: The widget containing the fast calibration interface.
+    """
+    page = QWidget()
+    layout = QVBoxLayout(page)
+
+    x_layout = QHBoxLayout()
+    x_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    x_label = QLabel("X Position:")
+    x_input = QLineEdit()
+    x_layout.addWidget(x_label)
+    x_layout.addWidget(x_input)
+    layout.addLayout(x_layout)
+
+    y_layout = QHBoxLayout()
+    y_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    y_label = QLabel("Y Position:")
+    y_input = QLineEdit()
+    y_layout.addWidget(y_label)
+    y_layout.addWidget(y_input)
+    layout.addLayout(y_layout)
+
+    button_wrapper = QHBoxLayout()
+    button_wrapper.setAlignment(Qt.AlignmentFlag.AlignBottom)
+    calibrate_button = QPushButton("Calibrate")
+    calibrate_button.clicked.connect(lambda: confirm_fast_calibration_step(self, float(x_input.text()), float(y_input.text())))
+    button_wrapper.addWidget(calibrate_button)
     layout.addLayout(button_wrapper)
 
     return page

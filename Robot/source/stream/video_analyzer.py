@@ -137,7 +137,7 @@ class VideoAnalyzer:
         self, calibration_data: List[Dict[str, Any]]
     ) -> Tuple[bool, str, Optional[np.ndarray]]:
         """
-        Calculates the affine transformation from camera coordinates to robot coordinates
+        Calculates the homograph transformation from camera coordinates to robot coordinates
         using the provided calibration data and stores it globally.
 
         Args:
@@ -161,25 +161,29 @@ class VideoAnalyzer:
                     camera_points.append([cam_x, cam_y])
                     robot_points.append([rob_x, rob_y])
                 except (TypeError, ValueError) as e:
+                    print(
+                        f"Warning: Skipping invalid point data in calibration entry: {entry}, error: {e}"
+                    )
                     continue
-        if len(camera_points) < 3:
-            msg = f"Insufficient valid calibration points to calculate transformation. Need at least 3, found {len(camera_points)}."
+        if len(camera_points) < 4:
+            msg = f"Insufficient points for homography. Need at least 4, found {len(camera_points)}."
+            print(msg)
             with shared_state.data_lock:
                 shared_state.global_transformation_matrix = None
             return False, msg, None
-        src_pts = np.float32(camera_points)
-        dst_pts = np.float32(robot_points)
-        transform_matrix, inliers = cv2.estimateAffine2D(
-            src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=20.0
-        )
-        if transform_matrix is not None:
-            num_inliers = np.sum(inliers) if inliers is not None else 0
+        src_pts = np.array(camera_points, dtype=np.float32)
+        dst_pts = np.array(robot_points, dtype=np.float32)
+        homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC)
+        if homography_matrix is not None:
             with shared_state.data_lock:
-                shared_state.global_transformation_matrix = transform_matrix
-            msg = f"Successfully calculated and stored transformation matrix using {num_inliers}/{len(src_pts)} points."
-            return True, msg, transform_matrix
+                shared_state.global_transformation_matrix = homography_matrix
+            num_inliers = int(np.sum(mask)) if mask is not None else 0
+            msg = f"Homography computed with {num_inliers}/{len(src_pts)} inliers."
+            print(msg)
+            return True, msg, homography_matrix
         else:
-            msg = "Failed to calculate transformation matrix (cv2.estimateAffine2D returned None). Check if points are collinear or insufficient."
+            msg = "Homography computation failed."
+            print(msg)
             with shared_state.data_lock:
                 shared_state.global_transformation_matrix = None
             return False, msg, None
@@ -199,15 +203,13 @@ class VideoAnalyzer:
             tuple: (robot_x, robot_y) or (None, None) if transformation matrix is not available.
         """
         with shared_state.data_lock:
-            current_matrix = shared_state.global_transformation_matrix
-        if current_matrix is None:
+            matrix = shared_state.global_transformation_matrix
+        if matrix is None:
             return None, None
-        cam_point = np.array([[[float(camera_x), float(camera_y)]]], dtype=np.float32)
-        if isinstance(current_matrix, np.ndarray):
-            try:
-                transformed_point = cv2.transform(cam_point, current_matrix)
-                return transformed_point[0][0][0], transformed_point[0][0][1]
-            except cv2.error as e:
-                return None, None
-        else:
+        cam_point = np.array([[[camera_x, camera_y]]], dtype=np.float32)
+        try:
+            robot_point = cv2.perspectiveTransform(cam_point, matrix)
+            return float(robot_point[0][0][0]), float(robot_point[0][0][1])
+        except cv2.error as e:
+            print(f"Error in perspectiveTransform: {e}")
             return None, None

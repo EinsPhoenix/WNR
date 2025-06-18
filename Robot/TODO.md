@@ -9,6 +9,10 @@
 
 ## Next:
 
+- Der Raspi toggle funktioniert noch nicht richtig
+    - Es wird nur getestet, ob der Thread läuft
+    - Ich kann den nicht ausschalten
+
 - Wenn sorting läuft wird das Lager nicht geupdated
 
 - Wenn ich einen schönen focus für CustomToggle finde kann ich die wieder in get_focusable_widgets einbinden

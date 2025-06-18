@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, Q
 from qasync import QEventLoop
 
 from automated_sorter import AutomatedSorter
-from gui import reset_slogan, post_calibrate_camera, post_start_sorting, post_storage_display, post_camera_display, post_color_analysis, post_color_settings, post_manual_controls, post_settings
+from gui import reset_slogan, post_calibrate_camera, post_start_sorting, post_storage_display, post_camera_display, post_color_analysis, post_color_settings, post_manual_controls, post_settings, post_fast_calibrate
 from stream.stream import Stream
 from utils.communication import start_fetching
 from utils.config import read_config
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         self.logo_label.setPixmap(QPixmap(r".\icons\wnr_logo.png").scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.sidebar_wrapper.addWidget(self.logo_label)
 
-        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Storage status", "Camera", "Color analysis", "Color settings", "Manual controls", "Settings", "Exit"])
+        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Storage status", "Camera", "Color analysis", "Color settings", "Manual controls", "Settings", "Fast calibrate", "Exit"])
         self.sidebar.setFixedWidth(250)
         self.sidebar.tabChanged.connect(self.on_tab_changed)
 
@@ -98,6 +98,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(post_color_settings(self))
         self.content_stack.addWidget(post_manual_controls(self))
         self.content_stack.addWidget(post_settings(self))
+        self.content_stack.addWidget(post_fast_calibrate(self))
 
         self.sidebar.buttons[-1].clicked.connect(self.close)
 
