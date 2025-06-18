@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import socket
 import sys
 import os
+import time
 
 
 class TcpClient:
@@ -172,6 +173,7 @@ def generate_and_send_data():
     entries_sent_count = 0
 
     for i in range(TOTAL_ENTRIES):
+        time.sleep(1)
         entry = {
             "uuid": str(uuid.uuid4()),
             "color": random.choice(colors),

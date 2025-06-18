@@ -4,8 +4,8 @@ import sys
 import os
 
 
-# === 1. TcpClient Class ===
-# Handles TCP connection, authentication, and communication with the server.
+
+
 class TcpClient:
     """
     Manages the TCP connection and communication with the Rust server.
@@ -17,7 +17,7 @@ class TcpClient:
         self.socket = None
         self.connected = False
 
-    # --- 1.1 Connection ---
+    
     def connect(self):
         """Establishes a connection to the server."""
         try:
@@ -35,7 +35,7 @@ class TcpClient:
             self.socket = None
             return False
 
-    # --- 1.2 Authentication ---
+    
     def authenticate(self, password):
         """Handles password authentication with the server."""
         if not self.connected or not self.socket:
@@ -43,7 +43,7 @@ class TcpClient:
             return False
 
         try:
-            # Receive prompt, send password, check response
+            
             prompt = self.socket.recv(1024).decode("utf-8")
             print(f"Server: {prompt}", end="")
             self.socket.sendall(password.encode("utf-8"))
@@ -66,7 +66,7 @@ class TcpClient:
             self.close()
             return False
 
-    # --- 1.3 Receiving Responses ---
+    
     def receive_response(self, buffer_size=4096):
         """Receives a complete JSON response terminated by a newline."""
         if not self.connected or not self.socket:
@@ -75,17 +75,17 @@ class TcpClient:
 
         try:
             response_data = ""
-            # Read until newline is received
+            
             while not response_data.endswith("""status":"success"}"""):
                 chunk = self.socket.recv(buffer_size).decode("utf-8")
-                if not chunk:  # Connection closed by server
+                if not chunk:  
                     print("INFO: Server closed the connection.")
                     self.connected = False
                     self.socket = None
                     return None
                 response_data += chunk
 
-            # Parse JSON response
+            
             try:
                 return json.loads(response_data.strip())
             except json.JSONDecodeError as e:
@@ -101,7 +101,7 @@ class TcpClient:
             self.close()
             return None
 
-    # --- 1.4 Sending JSON Data ---
+    
     def send_json(self, data):
         """Sends a Python dictionary as a JSON string to the server."""
         if not self.connected or not self.socket:
@@ -111,11 +111,11 @@ class TcpClient:
         try:
             json_data = json.dumps(data)
             self.socket.sendall(json_data.encode("utf-8"))
-            # Server sends newline *after* its response.
+            
 
             response = self.receive_response()
 
-            # Print formatted response
+            
             if response:
                 status = response.get("status", "unknown")
                 message = response.get("message", "No message provided")
@@ -138,7 +138,7 @@ class TcpClient:
             self.close()
             return None
 
-    # --- 1.5 Closing Connection ---
+    
     def close(self):
         """Closes the socket connection if open."""
         if self.socket:
@@ -152,7 +152,7 @@ class TcpClient:
                 self.connected = False
 
 
-# === 2. Helper Functions ===
+
 def load_json_from_file(filename="test.json"):
     """Loads JSON data from a file located in the script's directory."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -178,18 +178,18 @@ def load_json_from_file(filename="test.json"):
         return None
 
 
-# === 3. Main Execution Logic ===
+
 def main():
     """
     Main function: Connects, authenticates, sends initial data,
     and enters an interactive loop.
     """
-    # --- 3.1 Initialization ---
-    # Its an example so do not hardcode the password
+    
+    
     server_password = "1234"
     client = TcpClient()
 
-    # --- 3.2 Connection & Authentication ---
+    
     if not client.connect():
         print("ERROR: Failed to connect to server. Exiting.")
         return
@@ -199,7 +199,7 @@ def main():
 
     print("\nINFO: Authentication successful! Ready to send data.")
 
-    # --- 3.3 Send Initial JSON Data ---
+    
     initial_json_data = load_json_from_file("test.json")
     if initial_json_data:
         print("INFO: Sending initial data from 'test.json'...")
@@ -209,7 +209,7 @@ def main():
     else:
         print("WARNING: Could not load 'test.json', skipping initial send.")
 
-    # --- 3.4 Interactive User Loop ---
+    
     try:
         while True:
             print("\n--- Options ---")
@@ -253,11 +253,11 @@ def main():
     except KeyboardInterrupt:
         print("\nINFO: Program interrupted by user (Ctrl+C).")
     finally:
-        # --- 3.5 Cleanup ---
+        
         print("INFO: Cleaning up and closing connection...")
         client.close()
 
 
-# === 4. Script Entry Point ===
+
 if __name__ == "__main__":
     main()
