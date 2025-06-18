@@ -1,0 +1,29 @@
+name,description,query,id,parentId,isFolder
+Init,,,0,,true
+Init Shard 2,,"USE fabric.dbshard2
+CREATE INDEX id2_value_idx IF NOT EXISTS FOR (n:Id) ON (n.value);
+USE fabric.dbshard2
+CREATE INDEX sensordata_timestamp_idx IF NOT EXISTS FOR (n:SensorData) ON (n.timestamp);
+USE fabric.dbshard2
+CREATE INDEX temperature_value_idx IF NOT EXISTS FOR (n:Temperature) ON (n.value);
+USE fabric.dbshard2
+CREATE INDEX humidity_value_idx IF NOT EXISTS FOR (n:Humidity) ON (n.value);
+",1,0,false
+Init Shard 3,,"USE fabric.dbshard3
+CREATE INDEX id3_value_idx IF NOT EXISTS FOR (n:Id) ON (n.value);
+USE fabric.dbshard3
+CREATE INDEX timestamp_value_idx IF NOT EXISTS FOR (n:Timestamp) ON (n.value);
+USE fabric.dbshard3
+CREATE INDEX energy_consume_value_idx IF NOT EXISTS FOR (n:EnergyConsume) ON (n.value);
+USE fabric.dbshard3
+CREATE INDEX energy_cost_value_idx IF NOT EXISTS FOR (n:EnergyCost) ON (n.value);
+",2,0,false
+Init shard 1,,"USE fabric.dbshard1
+CREATE INDEX id_value_idx IF NOT EXISTS FOR (n:Id) ON (n.value);
+USE fabric.dbshard1
+CREATE INDEX uuid_value_idx IF NOT EXISTS FOR (n:Uuid) ON (n.value);
+USE fabric.dbshard1
+CREATE INDEX color_value_idx IF NOT EXISTS FOR (n:Color) ON (n.value);
+USE fabric.dbshard1
+CREATE INDEX global_counter_name_idx IF NOT EXISTS FOR (n:GlobalIdCounter) ON (n.name);
+",3,0,false
