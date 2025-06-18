@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from '$app/navigation';
-    import { mqttData, initMqtt } from "$lib/stores/mqttClient";
+    import { mqttData, liveData, initMqtt } from "$lib/stores/mqttClient";
   
     let isSticky = false;
   
@@ -41,16 +41,12 @@
       
       <div class="group2">
         {#each $mqttData as msg, i}
-          {#if msg.data && msg.data.length > 0}
-            <button class="btn">
-              <div class="item">
-                [{new Date(msg.data[0].timestamp).toLocaleTimeString()}]
-                Item
-                #{i + 1}
-                produced
-              </div>
-            </button>
-          {/if}
+          <button class="btn">
+            <div class="item">
+              [{new Date(msg.timestamp).toLocaleTimeString()}]
+              Item #{i + 1} produced
+            </div>
+          </button>
         {/each}
       </div>
 

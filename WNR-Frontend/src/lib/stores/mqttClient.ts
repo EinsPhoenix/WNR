@@ -86,7 +86,7 @@
 import { writable } from 'svelte/store';
 
 export const mqttData = writable<any[]>([]);
-export const livedata = writable<any[]>([]);
+export const liveData = writable<any[]>([]);
 
 let client: any;
 
@@ -117,8 +117,16 @@ export function initMqtt() {
   client.on('message', (topic, message) => {
     try {
       const data = JSON.parse(message.toString());
-      let storage_data = localStorage.setItem("data", data);
-      mqttData.update((items) => [data, ...items]);
+      localStorage.setItem("data", JSON.stringify(data));
+      liveData.set(data); // this for the charts
+      // mqttData.update((items) => [data, ...items]); // this for the navbar items
+      console.log(data);
+
+      mqttData.update((items) =>
+        [data, ...items].sort((b, a) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 50)
+      );
+
+      // mqttData.update((items) => [data, ...items]);
       // console.log(data);
     } catch (e) {
       console.error('Invalid JSON from MQTT', e);
