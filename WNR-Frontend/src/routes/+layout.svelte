@@ -1,9 +1,11 @@
 <script>
     import '../app.css'
     import Navbar from '$lib/Navbar.svelte';
+    import NewNavbar from '$lib/NewNavbar.svelte';
     import Footer from '$lib/Footer.svelte';
     import Loader from '$lib/Loader.svelte';
     import { onMount } from 'svelte';
+    import { page } from '$app/stores';
 
     let hasPageLoaded = false;
 
@@ -18,12 +20,13 @@
     <Loader />
 {/if}
 
-<Navbar />
+{#if $page.url.pathname === '/'}
+  <NewNavbar />
+{/if}
 <slot />
-<!-- <Footer /> -->
 
 <style>
     :global(body) {
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Manrope', sans-serif;
     }
 </style>

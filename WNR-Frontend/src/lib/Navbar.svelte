@@ -31,23 +31,59 @@
       <div class="group1">
           <!-- LOGO -->
           <button class="wnrlogo" on:click={goHome}>
-              <img src="/wnrcutealpha.png" alt="wnr logo" width="80" height="auto" />
+              <img src="/wnrcutealpha.png" alt="wnr logo" width="100" height="auto" />
           </button>
   
           <!-- TITEL -->
           <!-- <div class="app-name">Why no REST?</div> -->
-          <img class="app-name" src="/wrnlogo2.png" alt="wnr logo" width="400" height="auto" />
+          <!-- <img class="app-name" src="/wrnlogo2.png" alt="wnr logo" width="400" height="auto" /> -->
       </div>
       
       <div class="group2">
-        {#each $mqttData as msg, i}
+        <!-- {#each $mqttData as msg, i}
           <button class="btn">
             <div class="item">
               [{new Date(msg.timestamp).toLocaleTimeString()}]
               Item #{i + 1} produced
             </div>
           </button>
-        {/each}
+        {/each} -->
+
+          <button class="btn">
+            <div class="item">
+              [1:44:21 PM] Item #244 produced
+            </div>
+          </button>
+
+          <button class="btn">
+            <div class="item">
+              [1:43:42 PM] Item #243 produced
+            </div>
+          </button>
+
+          <button class="btn">
+            <div class="item">
+              [1:42:19 PM] Item #242 produced
+            </div>
+          </button>
+
+          <button class="btn">
+            <div class="item">
+              [1:41:19 PM] Item #241 produced
+            </div>
+          </button>
+
+          <button class="btn">
+            <div class="item">
+              [1:40:19 PM] Item #240 produced
+            </div>
+          </button>
+
+          <button class="btn">
+            <div class="item">
+              [1:39:19 PM] Item #239 produced
+            </div>
+          </button>
       </div>
 
       <div class="group3">
@@ -100,8 +136,6 @@
       margin-top: 0.5rem;
       background-color: var(--pastel-white-color);
       width: 100%;
-      border-top: solid 2px;
-      border-bottom: solid 2px;
     }
 
     .btn:hover {
@@ -153,12 +187,12 @@
   
     .group1 {
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       width: 100%;
       background-color: var(--pastel-purple-color);
-      height: 150px;
+      height: 300px;
     }
 
     .group2 {
@@ -168,12 +202,10 @@
       height: 100%;
       align-items: start;
       background-color: var(--pastel-pink-color);
-      border-top: solid 2px;
       overflow: auto;
     }
 
     .group3 {
-      border-top: solid 2px;
       background-color: var(--pastel-pink-color);
       width: 100%;
       height: 100%;
@@ -183,8 +215,6 @@
       height: 4rem;
       display: flex;
       align-items: center;
-      border-top: solid 2px;
-      border-bottom: solid 2px;
       margin-top: 0.5rem;
       background-color: var(--pastel-white-color);
     }
@@ -206,7 +236,6 @@
     }
 
     .group4 {
-      border-top: solid 2px;
       background-color: var(--pastel-pink-color);
       width: 100%;
       height: 200px;

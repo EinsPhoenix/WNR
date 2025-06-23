@@ -5,8 +5,7 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<!-- <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> --> <!-- entkommentieren wenn lokal -->
-		<!-- <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet"> -->
-		<!-- <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> -->
+		<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
 		 <!-- <script src="../static/lib//mqtt.min.js"></script> -->
 		  <script src="/lib/mqtt.min.js"></script>
 		%sveltekit.head%
@@ -20,8 +19,7 @@
 	html, body {
 		margin: 0;
 		padding: 0;
-		/* background: linear-gradient(-90deg,rgba(189, 178, 255, 1) 0%, rgb(160, 196, 255) 35%, rgba(255, 198, 255, 1) 100%); */
-		background: linear-gradient(-90deg, #BDB2FF 0%, #9833b1 35%, #302244 100%);
+		background: linear-gradient(-90deg, var(--experimental-light) 0%, var(--experimental-medium) 35%, var(--experimental-dark) 100%);
 
 		background-size: 200% 200%;
   		animation: moveGradient 20s ease infinite;

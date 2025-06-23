@@ -78,7 +78,7 @@
   const data3: ChartData<'bar'> = {
     labels: [],
     datasets: [{
-      label: 'Production per day',
+      label: 'productions',
       data: [],
       backgroundColor: 'rgba(220, 150, 220, 1)',
       borderColor: 'rgba(220, 150, 220, 1)',
@@ -154,13 +154,21 @@
 
 
 <div class="wrapper">
+
+  <div class="box6">
+    <div class="greeting">
+      Welcome back, 
+    </div>
+    <div class="user-name">
+      Max Mustermann
+    </div>
+    <div class="user-icon">
+      <img src="/male-16.webp" alt="user" width="100" height="auto" />
+    </div>
+  </div>
+
   <div class="box box1">
     <div class="information-wrapper">
-      <!-- <div class="energy-cost box-title2">
-        Energy costs:
-        <div class="cost-number">254 €</div>
-        <div class="cost-percentage">-33%</div>
-      </div> -->
 
       <div class="energy-cost box-title2">
         Energy costs:
@@ -178,8 +186,6 @@
           </svg>
         </div>
       </div>
-
-
 
       <div class="border"></div>
       <div class="speed box-title2">
@@ -240,7 +246,7 @@
   </div>
 
   <div class="box box4">
-    <div class="box-title">Production per day</div>
+    <div class="box-title">Active productions</div>
     <canvas bind:this={barChart1}></canvas>
   </div>
 
@@ -252,15 +258,45 @@
 
 
 <style>
+  .greeting {
+    font-size: 1.8rem;
+  }
+  .user-name {
+    margin-left: 15px;
+    font-weight: bold;
+    font-size: 1.8rem;
+  }
+
+  .user-icon {
+    width: 70px;
+    height: 70px;
+    border: 2px solid black;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+  }
+  
+  .user-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .user-icon img:hover {
+    cursor: pointer;
+  }
 
     .cost-icon {
-      fill: green; /* oder green */
-      transform: rotate(0deg); /* oder 180deg für Pfeil nach oben */
+      fill: green; /* oder red */
+      transform: rotate(0deg); /* oder 0deg für Pfeil nach unten */
     }
 
     .cost-icon-bad {
       fill: red; /* oder green */
-      transform: rotate(0deg); /* oder 180deg für Pfeil nach oben */
+      transform: rotate(180deg); /* oder 180deg für Pfeil nach oben */
     }
 
     svg {
@@ -325,24 +361,14 @@
         display: flex;
         align-items: center;
         justify-content: start;
-        /* color: #fb53ac; */
         background: #ff2f9e;
         background: linear-gradient(to top, #db0075 11%, #ffa7ff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        /* text-shadow: 0px 0px 3px #fff; */
     }
 
     .box-title2 {
         color: #FB53AC;
-        /* background: #FB53AC;
-        background: linear-gradient(to top, #FB53AC 11%, #FFC6FF 100%); */
-
-
-        /* background: #ff2f9e;
-        background: linear-gradient(to top, #db0075 11%, #d856d8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent; */
     }
 
     .border {
@@ -353,7 +379,7 @@
     .energy-cost {
         display: flex;
         flex-direction: column;
-        text-align: start;
+        align-items: center;
     }
 
     .cost-number {
@@ -362,15 +388,7 @@
     }
 
     .cost-percentage {
-        /* color: var(--pastel-green-color); */
-        /* background: var(--pastel-green-color); */
-        /* -webkit-background-clip: text; */
-        /* -webkit-text-fill-color: transparent; */
-
-        /* color: var(--pastel-green-color); */
         color: rgb(87, 87, 87);
-        /* text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8); */
-        /* font-weight: bolder; */
         font-size: 1.2rem;
         display: flex;
         flex-direction: row;
@@ -380,7 +398,7 @@
     .speed {
         display: flex;
         flex-direction: column;
-        text-align: start;
+        align-items: center;
     }
 
     .speed-number {
@@ -389,16 +407,7 @@
     }
 
     .speed-percentage {
-        /* color: var(--pastel-green-color);
-        background: var(--pastel-green-color);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent; */
-
-        /* color: var(--pastel-green-color); */
         color: rgb(87, 87, 87);
-
-        /* text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8); */
-        /* font-weight: bolder; */
         font-size: 1.2rem;
         display: flex;
         flex-direction: row;
@@ -408,7 +417,7 @@
     .fail {
         display: flex;
         flex-direction: column;
-        text-align: start;
+        align-items: center;
     }
 
     .fail-number {
@@ -417,17 +426,7 @@
     }
 
     .fail-percentage {
-        /* color: var(--pastel-red-color);
-        background: var(--pastel-red-color);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent; */
-
-
-
-        /* color: var(--pastel-red-color); */
-        /* text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8); */
         color: rgb(87, 87, 87);
-        /* font-weight: bolder; */
         font-size: 1.2rem;
         display: flex;
         flex-direction: row;
@@ -441,9 +440,7 @@
         height: 100%;
     }
 
-    /* wip */
     .wrapper {
-        margin-top: -30px;
         flex: 1;
         display: grid;
         gap: 20px;
@@ -481,71 +478,75 @@
                 var(--c3) 0
             );
         background-size: var(--s) calc(var(--s) / 0.577);
-        /* background-color: rgb(255, 187, 244); */
     }
 
     .box {
-        /* border: solid var(--pastel-pink-color) 4px; */
         padding: 20px;
         text-align: center;
         background-color: var(--pastel-white-color);
-        border-radius: 16px;
+        border-radius: 17px;
         transition: transform 0.3s ease-in-out;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: 0px 10px 15px -3px rgba(0,0,0,0.3);
+        transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        border-left: solid var(--pastel-pink-color);
     }
 
     .box:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 10px 2px #BDB2FF, 0 0 1px 4px #BDB2FF inset;
+        box-shadow: 
+          0px 10px 10px -10px rgba(0,0,0,0.5);
     }
 
     .box1 {
         grid-row: 2 / span 2;
-        grid-column: 2 / span 20;
+        grid-column: 2 / span 12;
 
         padding: 0;
         background-color: rgb(255, 255, 255, 0.8);
-        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
     .box2 {
         grid-row: 4 / span 4;
         grid-column: 2 / span 12;
-
-        /* background-color: rgb(249, 246, 238, 0.9); */
         background-color: rgb(255, 255, 255, 0.8);
-        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
     .box3 {
         grid-row: 8 / span 8;
         grid-column: 2 / span 12;
-
-        /* background-color: rgb(249, 246, 238, 0.9); */
         background-color: rgb(255, 255, 255, 0.8);
-        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
     .box4 {
         grid-row: 10 / span 6;
         grid-column: 14 / span 8;
-
-        /* background-color: rgb(249, 246, 238, 0.9); */
         background-color: rgb(255, 255, 255, 0.8);
-        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
     }
 
     .box5 {
         grid-row: 4 / span 6;
         grid-column: 14 / span 8;
-
-        /* background-color: rgb(249, 246, 238, 0.9); */
         background-color: rgb(255, 255, 255, 0.8);
-        /* background-color: rgb(26, 26, 26, 0.9); */
         color: var(--pastel-pink-color);
+    }
+
+    .box6 {
+        grid-row: 2 / span 2;
+        grid-column: 14 / span 8;
+
+        padding: 0;
+        color: black;
+
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
     }
 
 
@@ -576,7 +577,6 @@
             min-width: 0;
             min-height: 400px;
             margin: 20px;
-            /* background-color: black; */
             margin-top: 0;
             margin-bottom: 0;
         }

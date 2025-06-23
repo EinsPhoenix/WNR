@@ -17,4 +17,13 @@
     --pastel-purple-color: #BDB2FF;
     --pastel-pink-color: #FFC6FF;
     --pastel-white-color: #FFFFFC;
+
+
+    --experimental-light: #BDB2FF;
+    --experimental-medium: #FFC6FF;
+    --experimental-dark: #b388eb;
+
+    /* --experimental-light: #BDB2FF;
+    --experimental-medium: #9833b1;
+    --experimental-dark: #302244; */
 }
