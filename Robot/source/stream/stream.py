@@ -55,7 +55,7 @@ class Stream:
         if not stream_handler.open():
             return
         marker_detector = MarkerDetector()
-        video_analyzer = VideoAnalyzer()
+        self.video_analyzer = VideoAnalyzer(self.main_window.config_path)
         opcua_server_url = shared_state.OPC_SERVER_URL
         self.opcua_client_instance = AsyncOPCUAClient(opcua_server_url)
         opcua_thread = threading.Thread(
@@ -68,7 +68,7 @@ class Stream:
             host = config["tcp"]["host"],
             port = config["tcp"]["port"],
             marker_detector = marker_detector,
-            video_analyzer = video_analyzer
+            video_analyzer = self.video_analyzer
         )
         command_handler.start_server()
         if not stream_handler.wait_for_first_frame(timeout=60):
@@ -80,13 +80,13 @@ class Stream:
                 shared_state.CALIBRATION_FILE_PATH
             )
             if shared_state.calibrated_marker_origins:
-                video_analyzer.calculate_and_store_transformation(
+                self.video_analyzer.calculate_and_store_transformation(
                     shared_state.calibrated_marker_origins
                 )
         ui_window = UIWindow(
-            stream_handler=stream_handler,
-            marker_detector=marker_detector,
-            video_analyzer=video_analyzer,
+            stream_handler = stream_handler,
+            marker_detector = marker_detector,
+            video_analyzer = self.video_analyzer,
         )
         ui_window.setup_window()
         try:
@@ -96,21 +96,29 @@ class Stream:
         finally:
             if self.opcua_client_instance and self.opcua_event_loop:
                 if self.opcua_client_instance.running:
-                    future = asyncio.run_coroutine_threadsafe(self.opcua_client_instance.stop(), self.opcua_event_loop)
-                    try:
-                        future.result(timeout=10)
-                    except Exception as e:
-                        pass
-                if self.opcua_event_loop.is_running():
-                    self.opcua_event_loop.call_soon_threadsafe(self.opcua_event_loop.stop)
+                    if self.opcua_event_loop and not self.opcua_event_loop.is_closed():
+                        try:
+                            future = asyncio.run_coroutine_threadsafe(self.opcua_client_instance.stop(), self.opcua_event_loop)
+                            future.result(timeout=5.0)
+                        except:
+                            pass
+                        finally:
+                            if not self.opcua_event_loop.is_closed():
+                                self.opcua_event_loop.call_soon_threadsafe(self.opcua_event_loop.stop)
             if opcua_thread and opcua_thread.is_alive():
                 opcua_thread.join(timeout=5)
             command_handler.stop_server()
             stream_handler.close()
 
-    async def start_stream(self):
-        """Starts the stream processing in a separate thread."""
+    async def start_stream(self) -> bool:
+        """
+        Starts the stream processing in a separate thread.
+
+        Returns:    
+            bool: True if the stream started successfully, False otherwise.
+        """
         try:
+            self.main_window.stream_running = True
             self.stream_thread = threading.Thread(target=self.main, daemon=True)
             self.stream_thread.start()
             if self.stream_thread.is_alive():
@@ -118,10 +126,17 @@ class Stream:
         except: pass
         return False
 
-    async def stop_stream(self):
-        """Stops the stream processing and cleans up resources."""
+    async def stop_stream(self) -> bool:
+        """
+        Stops the stream processing and cleans up resources.
+        Returns:
+            bool: False if the stream stopped successfully, True otherwise.
+        """
         try:
+            print("Stopping stream...")
             if hasattr(self, "stream_thread") and self.stream_thread.is_alive():
+                print("Stream thread is alive, attempting to stop it...")
+                self.main_window.stream_running = False
                 self.stream_thread.join(timeout=5)
                 if not self.stream_thread.is_alive():
                     return False

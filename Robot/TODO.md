@@ -9,19 +9,13 @@
 
 ## Next:
 
-- Der Raspi toggle funktioniert noch nicht richtig
-    - Es wird nur getestet, ob der Thread läuft
-    - Ich kann den nicht ausschalten
+- Ich muss vielleicht noch die alten shortcuts für den Stream im GUI implementieren
 
 - Wenn sorting läuft wird das Lager nicht geupdated
 
 - Wenn ich einen schönen focus für CustomToggle finde kann ich die wieder in get_focusable_widgets einbinden
 
 - Wenn der server stirbt bin ich noch "connected"
-
-- Wenn das GUI geschlossen wird muss ich alles richtig disconnecten
-
-- Kamerabild im GUI zurücksetzen, wenn für 3 sec kein neues Bild mehr gekommen ist
 
 - Vielleicht muss ich den Toggle noch kleiner machen
 

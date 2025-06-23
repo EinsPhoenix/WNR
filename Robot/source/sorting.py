@@ -46,7 +46,7 @@ class SortingWorker(QThread):
         if not result:
             self.label.emit("Energy prices could not be fetched.")
             self.button.emit("Start")
-            self.main_window.robot_busy = False
+            self.main_window.robot_used_by = ""
             return
         self.label.emit("Sorting in progress...\nStop the process by pressing the \"Stop\" button.")
         while True:
@@ -54,7 +54,7 @@ class SortingWorker(QThread):
                 if self._running is False:
                     self.label.emit("Sorting process was stopped.")
                     self.button.emit("Start")
-                    self.main_window.robot_busy = False
+                    self.main_window.robot_used_by = ""
                     return
                 sleep(0.1)
             timer = perf_counter()
@@ -62,7 +62,7 @@ class SortingWorker(QThread):
             if color == "none":
                 self.label.emit("No more blocks to sort.")
                 self.button.emit("Start")
-                self.main_window.robot_busy = False
+                self.main_window.robot_used_by = ""
                 break
             self.label.emit(f"Moving block at ({block_x}, {block_y}) with color {color} to storage.")
             self.main_window.sorter.move_block_to_storage(block_x, block_y, color)
@@ -78,19 +78,19 @@ class SortingWorker(QThread):
             if self._running is False:
                 self.label.emit("Sorting process was stopped.")
                 self.button.emit("Start")
-                self.main_window.robot_busy = False
+                self.main_window.robot_used_by = ""
                 break
 
     def _get_energy_cost(self) -> float:
         """Get the energy cost for the current sorting operation."""
-        return 187
-        # FIXME:
         with open(self.main_window.fetcher.json_file_path, 'r', encoding='utf-8') as f:
             energy_data = shared_state.energy_data
         now = int(time() * 1000)
         for entry in energy_data["api_response"]["data"]:
             if entry["start_timestamp"] <= now <= entry["end_timestamp"]:
                 return entry["marketprice"]
+        print("No energy price found for the current time.")
+        return 0
 
     def stop(self) -> None:
         """Stop the sorting process."""
@@ -116,14 +116,12 @@ def start_sorting_worker(self) -> None:
         self: The main window object.
     """
     if self.db.connected:
-        if self.robot_busy:
-            # FIXME:
-            # self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
-            # return
-            pass
-        else:
-            self.robot_busy = True
-        self.sorter.set_speed(read_config(self)["robot"]["speed"])
+        if self.robot_used_by != "" and self.robot_used_by != "Sorting":
+            self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
+            return
+        if self.robot_used_by == "":
+            self.robot_used_by = "Sorting"
+            self.sorter.set_speed(read_config(self)["robot"]["speed"])
         if hasattr(self, "sorting_worker"):
             self.sorting_worker.stop()
             self.sorting_worker.wait()

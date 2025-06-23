@@ -1,15 +1,25 @@
-import cv2
-import numpy as np
 import math
 from typing import Dict, List, Tuple, Any, Optional
+
+import cv2
+import numpy as np
+
 import stream.shared_state as shared_state
+from utils.config import set_offset
 
 
 class VideoAnalyzer:
     """Analyzes video frames for color detection and coordinate transformations."""
-    def __init__(self):
-        """Initialize the video analyzer."""
-        pass
+    def __init__(self, config_path: str) -> None:
+        """
+        Initialize the video analyzer.
+
+        Args:
+            config_path (str): Path to the configuration file.
+        """
+        self.config_path = config_path
+        set_offset(self)
+
 
     def find_color(
         self, frame: np.ndarray, display_frame: Optional[np.ndarray] = None
@@ -209,7 +219,8 @@ class VideoAnalyzer:
         cam_point = np.array([[[camera_x, camera_y]]], dtype=np.float32)
         try:
             robot_point = cv2.perspectiveTransform(cam_point, matrix)
-            return float(robot_point[0][0][0]), float(robot_point[0][0][1])
+            # FIXME: Check if offset calculation makes sense
+            return float(robot_point[0][0][0]) * self.x_offset_factor + self.x_offset, float(robot_point[0][0][1]) * self.y_offset_factor + self.y_offset
         except cv2.error as e:
             print(f"Error in perspectiveTransform: {e}")
             return None, None

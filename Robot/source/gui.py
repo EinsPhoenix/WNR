@@ -1,13 +1,14 @@
+from asyncio import create_task
 from math import sqrt
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QWidget, QGridLayout
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QWidget, QGridLayout, QApplication, QGroupBox
 
 from sorting import start_sorting_worker, cancel_sorting
 from utils.config import read_config, save_config
 from utils.custom_elements import CustomToggle
-from utils.function import cancel_calibration, confirm_calibration_step, update_storage_display, increase_storage, decrease_storage, toggle_dark_mode, set_settings, confirm_fast_calibration_step
+from utils.function import cancel_calibration, confirm_calibration_step, update_storage_display, increase_storage, decrease_storage, toggle_dark_mode, set_settings, confirm_fast_calibration_step, send_to_db_test
 
 
 def reset_slogan(self) -> None:
@@ -172,8 +173,12 @@ def post_camera_display(self) -> QWidget:
     """
     page = QWidget()
     layout = QVBoxLayout(page)
+    # FIXME:
+    screen = QApplication.primaryScreen().geometry()
+    max_width = int(screen.width() * 0.7)
+    max_height = int(screen.height() * 0.7)
     self.camera_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    self.camera_display.setMinimumSize(1600, 900)
+    self.camera_display.setMinimumSize(max_width, max_height)
     layout.addWidget(self.camera_display)
     return page
 
@@ -190,8 +195,12 @@ def post_color_analysis(self) -> QWidget:
     """
     page = QWidget()
     layout = QVBoxLayout(page)
+    # FIXME:
+    screen = QApplication.primaryScreen().geometry()
+    max_width = int(screen.width() * 0.7)
+    max_height = int(screen.height() * 0.7)
     self.color_analysis.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    self.color_analysis.setMinimumSize(1600, 900)
+    self.color_analysis.setMinimumSize(max_width, max_height)
     layout.addWidget(self.color_analysis)
     return page
 
@@ -284,45 +293,65 @@ def post_settings(self) -> QWidget:
     left_input_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
     right_input_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+    x_offset_label = QLabel("X Offset")
+    self.x_offset_input = QLineEdit()
+    left_input_layout.addWidget(x_offset_label, 0, 0)
+    left_input_layout.addWidget(self.x_offset_input, 0, 1)
+
+    x_offset_factor_label = QLabel("X Offset Factor")
+    self.x_offset_factor_input = QLineEdit()
+    left_input_layout.addWidget(x_offset_factor_label, 1, 0)
+    left_input_layout.addWidget(self.x_offset_factor_input, 1, 1)
+
     com_port_label = QLabel("COM Port")
     self.com_port_input = QLineEdit()
-    left_input_layout.addWidget(com_port_label, 0, 0)
-    left_input_layout.addWidget(self.com_port_input, 0, 1)
+    left_input_layout.addWidget(com_port_label, 2, 0)
+    left_input_layout.addWidget(self.com_port_input, 2, 1)
 
     speed_label = QLabel("Speed")
     self.speed_input = QLineEdit()
-    left_input_layout.addWidget(speed_label, 1, 0)
-    left_input_layout.addWidget(self.speed_input, 1, 1)
-
-    tcp_host_label = QLabel("TCP Host")
-    self.tcp_host_input = QLineEdit()
-    right_input_layout.addWidget(tcp_host_label, 0, 0)
-    right_input_layout.addWidget(self.tcp_host_input, 0, 1)
-
-    tcp_port_label = QLabel("TCP Port")
-    self.tcp_port_input = QLineEdit()
-    right_input_layout.addWidget(tcp_port_label, 1, 0)
-    right_input_layout.addWidget(self.tcp_port_input, 1, 1)
+    left_input_layout.addWidget(speed_label, 3, 0)
+    left_input_layout.addWidget(self.speed_input, 3, 1)
 
     stream_host_label = QLabel("Stream Host")
     self.stream_host_input = QLineEdit()
-    left_input_layout.addWidget(stream_host_label, 2, 0)
-    left_input_layout.addWidget(self.stream_host_input, 2, 1)
+    left_input_layout.addWidget(stream_host_label, 4, 0)
+    left_input_layout.addWidget(self.stream_host_input, 4, 1)
 
     stream_port_label = QLabel("Stream Port")
     self.stream_port_input = QLineEdit()
-    left_input_layout.addWidget(stream_port_label, 3, 0)
-    left_input_layout.addWidget(self.stream_port_input, 3, 1)
+    left_input_layout.addWidget(stream_port_label, 5, 0)
+    left_input_layout.addWidget(self.stream_port_input, 5, 1)
+
+    y_offset_label = QLabel("Y Offset")
+    self.y_offset_input = QLineEdit()
+    right_input_layout.addWidget(y_offset_label, 0, 0)
+    right_input_layout.addWidget(self.y_offset_input, 0, 1)
+
+    y_offset_factor_label = QLabel("Y Offset Factor")
+    self.y_offset_factor_input = QLineEdit()
+    right_input_layout.addWidget(y_offset_factor_label, 1, 0)
+    right_input_layout.addWidget(self.y_offset_factor_input, 1, 1)
+
+    tcp_host_label = QLabel("TCP Host")
+    self.tcp_host_input = QLineEdit()
+    right_input_layout.addWidget(tcp_host_label, 2, 0)
+    right_input_layout.addWidget(self.tcp_host_input, 2, 1)
+
+    tcp_port_label = QLabel("TCP Port")
+    self.tcp_port_input = QLineEdit()
+    right_input_layout.addWidget(tcp_port_label, 3, 0)
+    right_input_layout.addWidget(self.tcp_port_input, 3, 1)
 
     db_host_label = QLabel("Database Host")
     self.db_host_input = QLineEdit()
-    right_input_layout.addWidget(db_host_label, 2, 0)
-    right_input_layout.addWidget(self.db_host_input, 2, 1)
+    right_input_layout.addWidget(db_host_label, 4, 0)
+    right_input_layout.addWidget(self.db_host_input, 4, 1)
 
     db_port_label = QLabel("Database Port")
     self.db_port_input = QLineEdit()
-    right_input_layout.addWidget(db_port_label, 3, 0)
-    right_input_layout.addWidget(self.db_port_input, 3, 1)
+    right_input_layout.addWidget(db_port_label, 5, 0)
+    right_input_layout.addWidget(self.db_port_input, 5, 1)
 
     left_input_layout.setColumnMinimumWidth(1, 150)
     left_input_layout.setColumnStretch(1, 1)
@@ -342,12 +371,16 @@ def post_settings(self) -> QWidget:
     save_button = QPushButton("Save")
     save_button.clicked.connect(lambda: save_config(
         self,
+        x_offset = float(self.x_offset_input.text()),
+        x_offset_factor = float(self.x_offset_factor_input.text()),
         com_port = self.com_port_input.text(),
         speed = int(self.speed_input.text()),
-        tcp_host = self.tcp_host_input.text(),
-        tcp_port = int(self.tcp_port_input.text()),
         stream_host = self.stream_host_input.text(),
         stream_port = int(self.stream_port_input.text()),
+        y_offset = float(self.y_offset_input.text()),
+        y_offset_factor = float(self.y_offset_factor_input.text()),
+        tcp_host = self.tcp_host_input.text(),
+        tcp_port = int(self.tcp_port_input.text()),
         db_host = self.db_host_input.text(),
         db_port = int(self.db_port_input.text())
     ))
@@ -358,7 +391,7 @@ def post_settings(self) -> QWidget:
     return page
 
 
-def post_fast_calibrate(self):
+def post_tests(self) -> QWidget:
     """
     Post the fast calibration widget to the main window.
 
@@ -371,13 +404,16 @@ def post_fast_calibrate(self):
     page = QWidget()
     layout = QVBoxLayout(page)
 
+    calibrate_group = QGroupBox("Fast Calibration")
+    calibrate_wrapper = QVBoxLayout(calibrate_group)
+
     x_layout = QHBoxLayout()
     x_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
     x_label = QLabel("X Position:")
     x_input = QLineEdit()
     x_layout.addWidget(x_label)
     x_layout.addWidget(x_input)
-    layout.addLayout(x_layout)
+    calibrate_wrapper.addLayout(x_layout)
 
     y_layout = QHBoxLayout()
     y_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -385,13 +421,25 @@ def post_fast_calibrate(self):
     y_input = QLineEdit()
     y_layout.addWidget(y_label)
     y_layout.addWidget(y_input)
-    layout.addLayout(y_layout)
+    calibrate_wrapper.addLayout(y_layout)
 
     button_wrapper = QHBoxLayout()
     button_wrapper.setAlignment(Qt.AlignmentFlag.AlignBottom)
     calibrate_button = QPushButton("Calibrate")
     calibrate_button.clicked.connect(lambda: confirm_fast_calibration_step(self, float(x_input.text()), float(y_input.text())))
     button_wrapper.addWidget(calibrate_button)
-    layout.addLayout(button_wrapper)
+    calibrate_wrapper.addLayout(button_wrapper)
+
+    layout.addWidget(calibrate_group)
+
+    send_group = QGroupBox("Send Test to DB")
+    send_wrapper = QVBoxLayout(send_group)
+    send_label = QLabel("Send test to DB")
+    send_button = QPushButton("Send")
+    send_button.clicked.connect(lambda: create_task(send_to_db_test(self)))
+    send_wrapper.addWidget(send_label)
+    send_wrapper.addWidget(send_button)
+
+    layout.addWidget(send_group)
 
     return page

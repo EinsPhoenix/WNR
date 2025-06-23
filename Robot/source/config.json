@@ -3,8 +3,12 @@
         "dark_mode": true
     },
     "robot": {
+        "x_offset": 0.0,
+        "x_offset_factor": 1.0,
         "com_port": "COM6",
-        "speed": 500
+        "speed": 500,
+        "y_offset": 0.0,
+        "y_offset_factor": 1.0
     },
     "tcp": {
         "host": "localhost",
@@ -15,7 +19,7 @@
         "port": 9999
     },
     "db": {
-        "host": "192.168.1.100",
+        "host": "localhost",
         "port": 12345
     }
 }

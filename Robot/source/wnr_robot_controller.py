@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import create_task
 from sys import argv, platform
 
 from PySide6.QtCore import QRect, QEvent
@@ -7,7 +8,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, Q
 from qasync import QEventLoop
 
 from automated_sorter import AutomatedSorter
-from gui import reset_slogan, post_calibrate_camera, post_start_sorting, post_storage_display, post_camera_display, post_color_analysis, post_color_settings, post_manual_controls, post_settings, post_fast_calibrate
+from gui import reset_slogan, post_calibrate_camera, post_start_sorting, post_storage_display, post_camera_display, post_color_analysis, post_color_settings, post_manual_controls, post_settings, post_tests
 from stream.stream import Stream
 from utils.communication import start_fetching
 from utils.config import read_config
@@ -29,7 +30,7 @@ class MainWindow(QMainWindow):
         self.app = app
         self.global_event_listener = GlobalEventListener(self)
         self.app.installEventFilter(self.global_event_listener)
-        self.robot_busy = False
+        self.robot_used_by = ""
         self.warned = False
         self.submenu_mode = False
         self.storage_counts = [0, 0, 0, 0]
@@ -37,11 +38,12 @@ class MainWindow(QMainWindow):
         config = read_config(self)
         self.tcp_host = config["tcp"]["host"]
         self.tcp_port = config["tcp"]["port"]
-        self.camera_display = QLabel("Sorry, the camera is not available yet.")
-        self.color_analysis = QLabel("Sorry, the camera is not available yet.")
+        self.camera_display = QLabel("Sorry, the camera is not available.")
+        self.color_analysis = QLabel("Sorry, the camera is not available.")
         self.sorter = AutomatedSorter(self)
         self.db = DatabaseImp(self)
         self.fetcher = EnergyPriceFetcher(self)
+        self.stream_running = False
         self.stream = Stream(self)
         set_style_sheet(self)
         self.setWindowTitle("WNR Robot Controller")
@@ -85,7 +87,7 @@ class MainWindow(QMainWindow):
         self.logo_label.setPixmap(QPixmap(r".\icons\wnr_logo.png").scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.sidebar_wrapper.addWidget(self.logo_label)
 
-        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Storage status", "Camera", "Color analysis", "Color settings", "Manual controls", "Settings", "Fast calibrate", "Exit"])
+        self.sidebar = CustomSidebar(["Calibrate Camera", "Start sorting", "Storage status", "Camera", "Color analysis", "Color settings", "Manual controls", "Settings", "Tests", "Exit"])
         self.sidebar.setFixedWidth(250)
         self.sidebar.tabChanged.connect(self.on_tab_changed)
 
@@ -98,7 +100,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(post_color_settings(self))
         self.content_stack.addWidget(post_manual_controls(self))
         self.content_stack.addWidget(post_settings(self))
-        self.content_stack.addWidget(post_fast_calibrate(self))
+        self.content_stack.addWidget(post_tests(self))
 
         self.sidebar.buttons[-1].clicked.connect(self.close)
 
@@ -184,7 +186,26 @@ class MainWindow(QMainWindow):
 
     def close(self) -> None:
         """Overrides the close method to handle the closing of the main window."""
-        # FIXME: Hier muss ich noch die Connections killen
+        try:
+            if self.stream.stream_thread.is_alive():
+                create_task(self.stream.stop_stream())
+        except:
+            pass
+        try:
+            if self.sorter.connected:
+                create_task(self.sorter.dobot_disconnect())
+        except:
+            pass
+        try:
+            if self.db.writer:
+                create_task(self.db.disconnect())
+        except:
+            pass
+        try:
+            if self.fetcher_thread.is_alive():
+                self.fetcher_thread.stop()
+        except:
+            pass
         super().close()
 
 
@@ -201,7 +222,6 @@ async def main() -> None:
     await main_window.post_connection_menu()
     main_window.show()
     set_title_bar_color(main_window)
-    # exit(app.exec())
     with loop:
         return loop.run_forever()
 

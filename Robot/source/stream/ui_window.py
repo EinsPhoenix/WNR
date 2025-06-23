@@ -1,28 +1,24 @@
+from typing import Dict, Any
+import threading
+import time
+
 import cv2
 import numpy as np
-from typing import Dict, Any
+from PySide6.QtCore import QObject, Signal, Qt
+from PySide6.QtGui import QImage, QPixmap
+
 import stream.shared_state as shared_state
 from stream.stream_handler import StreamHandler
 from stream.marker_detector import MarkerDetector
 from stream.video_analyzer import VideoAnalyzer
 import stream.color_filter_module as color_filter_module
 from stream.color_settings_window import ColorSettingsWindow
-import threading
-import time
 
 
-try:
-    from PySide6.QtCore import QObject, Signal, QTimer
-    from PySide6.QtGui import QImage, QPixmap
-    PYSIDE6_AVAILABLE = True
-except ImportError:
-    PYSIDE6_AVAILABLE = False
 
-
-class UIWindow(QObject if PYSIDE6_AVAILABLE else object):
+class UIWindow(QObject):
     """Manages the application window and user interactions."""
-    if PYSIDE6_AVAILABLE:
-        frame_ready = Signal(np.ndarray, object)
+    frame_ready = Signal(np.ndarray, object)
 
     def __init__(
         self,
@@ -38,9 +34,8 @@ class UIWindow(QObject if PYSIDE6_AVAILABLE else object):
             marker_detector: Instance of MarkerDetector
             video_analyzer: Instance of VideoAnalyzer
         """
-        if PYSIDE6_AVAILABLE:
-            super().__init__()
-            self.frame_ready.connect(self._update_qlabel_slot)
+        super().__init__()
+        self.frame_ready.connect(self._update_qlabel_slot)
         self.stream_handler = stream_handler
         self.marker_detector = marker_detector
         self.video_analyzer = video_analyzer
@@ -405,7 +400,9 @@ class UIWindow(QObject if PYSIDE6_AVAILABLE else object):
                 except cv2.error:
                     pass
             key = cv2.waitKey(1) & 0xFF
-            if not self.process_key(key):
+            if not self.process_key(key) or not main_window.stream_running:
+                main_window.camera_display.setText("Sorry, the camera is not available.")
+                main_window.color_analysis.setText("Sorry, the camera is not available.")
                 self.running = False
                 break
         self.processing_running = False
@@ -418,33 +415,22 @@ class UIWindow(QObject if PYSIDE6_AVAILABLE else object):
     def _update_qlabel_slot(self, frame, qlabel):
         """Slot to update QLabel with new frame (runs in main thread)."""
         try:
-            from PySide6.QtCore import Qt
-            from PySide6.QtGui import QImage, QPixmap
-
-            # Convert BGR to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            # Get frame dimensions
             h, w, ch = rgb_frame.shape
             bytes_per_line = ch * w
-
-            # Create QImage
             qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
-
-            # Scale to fit label while maintaining aspect ratio
             label_size = qlabel.size()
             pixmap = QPixmap.fromImage(qt_image)
             scaled_pixmap = pixmap.scaled(
                 label_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
             )
             qlabel.setPixmap(scaled_pixmap)
-        except Exception as e:
-            print(f"Error updating QLabel: {e}")
+        except:
+            pass
 
     def _display_frame(self, frame, qlabel):
         """Display OpenCV frame in QLabel widget."""
-        if PYSIDE6_AVAILABLE and hasattr(self, 'frame_ready'):
-            # Emit signal for thread-safe update
+        if hasattr(self, 'frame_ready'):
             self.frame_ready.emit(frame.copy(), qlabel)
 
     def stop(self) -> None:

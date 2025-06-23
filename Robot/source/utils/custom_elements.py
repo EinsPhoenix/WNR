@@ -304,31 +304,43 @@ class GlobalEventListener(QObject):
                 return True
             elif event.key() == 16777218 or event.key() == Qt.Key.Key_Left or event.key() == Qt.Key.Key_Up:
                 if not main_window.submenu_mode and hasattr(main_window, "sidebar"):
-                    for i, button in enumerate(main_window.sidebar.buttons):
-                        if button == main_window.focusWidget():
-                            main_window.sidebar.buttons[(i + len(main_window.sidebar.buttons) - 1) % len(main_window.sidebar.buttons)].setFocus()
-                            break
+                    try:
+                        for i, button in enumerate(main_window.sidebar.buttons):
+                            if button == main_window.focusWidget():
+                                main_window.sidebar.buttons[(i + len(main_window.sidebar.buttons) - 1) % len(main_window.sidebar.buttons)].setFocus()
+                                break
+                    except:
+                        pass
                 else:
                     if not type(main_window.focusWidget()) == QLineEdit or event.key() == 16777218:
-                        for i, child in enumerate(main_window.focusable_widgets):
-                            if child == main_window.focusWidget():
-                                main_window.focusable_widgets[(i + len(main_window.focusable_widgets) - 1) % len(main_window.focusable_widgets)].setFocus()
-                                break
+                        try:
+                            for i, child in enumerate(main_window.focusable_widgets):
+                                if child == main_window.focusWidget():
+                                    main_window.focusable_widgets[(i + len(main_window.focusable_widgets) - 1) % len(main_window.focusable_widgets)].setFocus()
+                                    break
+                        except:
+                            pass
                     else:
                         return super().eventFilter(obj, event)
                 return True
             elif event.key() == Qt.Key.Key_Tab or event.key() == Qt.Key.Key_Right or event.key() == Qt.Key.Key_Down:
                 if not main_window.submenu_mode and hasattr(main_window, "sidebar"):
-                    for i, button in enumerate(main_window.sidebar.buttons):
-                        if button == main_window.focusWidget():
-                            main_window.sidebar.buttons[(i + 1) % len(main_window.sidebar.buttons)].setFocus()
-                            break
+                    try:
+                        for i, button in enumerate(main_window.sidebar.buttons):
+                            if button == main_window.focusWidget():
+                                main_window.sidebar.buttons[(i + 1) % len(main_window.sidebar.buttons)].setFocus()
+                                break
+                    except:
+                        pass
                 else:
                     if not type(main_window.focusWidget()) == QLineEdit or event.key() == Qt.Key.Key_Tab:
-                        for i, child in enumerate(main_window.focusable_widgets):
-                            if child == main_window.focusWidget():
-                                main_window.focusable_widgets[(i + 1) % len(main_window.focusable_widgets)].setFocus()
-                                break
+                        try:
+                            for i, child in enumerate(main_window.focusable_widgets):
+                                if child == main_window.focusWidget():
+                                    main_window.focusable_widgets[(i + 1) % len(main_window.focusable_widgets)].setFocus()
+                                    break
+                        except:
+                            pass
                     else:
                         return super().eventFilter(obj, event)
                 return True

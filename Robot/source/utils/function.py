@@ -1,4 +1,5 @@
 import asyncio
+from random import uniform
 from time import sleep
 
 from utils.communication import send_message
@@ -18,7 +19,7 @@ def cancel_calibration(self) -> None:
         self.calibrate_label.setText("Calibration cancelled. You can start again.")
         self.calibrate_button.setText("Calibration")
         self.current_calibration_step = 0
-        self.robot_busy = False
+        self.robot_used_by = ""
     else:
         remove_warning(self)
 
@@ -30,13 +31,11 @@ def confirm_calibration_step(self) -> None:
     Args:
         self: The main window object.
     """
-    if self.robot_busy:
-        #FIXME:
-        # self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
-        # return
-        pass
-    else:
-        self.robot_busy = True
+    if self.robot_used_by != "" and self.robot_used_by != "Calibration":
+        self.show_warning("Robot is busy. Please wait until the current operation is finished or cancel it.")
+        return
+    if self.robot_used_by == "":
+        self.robot_used_by = "Calibration"
         self.sorter.set_speed(read_config(self)["robot"]["speed"])
     pos = self.calibrate_positions[self.current_calibration_step]
     z: int = 15
@@ -57,11 +56,11 @@ def confirm_calibration_step(self) -> None:
             send_message(self, {"type": "calibrate", "payload": {"finish": True}})
             self.calibrate_label.setText("Calibration finished. You can now start sorting.")
             self.calibrate_button.setText("Calibration")
+            self.robot_used_by = ""
         else:
             pos = self.calibrate_positions[self.current_calibration_step]
             self.sorter.move_to_position(*pos, z)
             self.calibrate_label.setText(f"Calibrating position {self.current_calibration_step + 1} at ({pos[0]}, {pos[1]}, {z}).\nConfirm to continue if QR-Cube is in position.")
-    self.robot_busy = False
 
 
 def confirm_fast_calibration_step(self, x, y) -> None:
@@ -80,8 +79,7 @@ def confirm_fast_calibration_step(self, x, y) -> None:
     if self.calibration_step == 5:
         send_message(self, {"type": "calibrate", "payload": {"finish": True}})
         self.calibrate_label.setText("Fast calibration finished. You can now start sorting.")
-        self.calibrating = False
-        
+        self.calibrating = False        
 
 
 def set_settings(self) -> None:
@@ -92,12 +90,16 @@ def set_settings(self) -> None:
         self: The main window object.
     """
     config = read_config(self)
+    self.x_offset_input.setText(str(config["robot"]["x_offset"]))
+    self.x_offset_factor_input.setText(str(config["robot"]["x_offset_factor"]))
     self.com_port_input.setText(config["robot"]["com_port"])
     self.speed_input.setText(str(config["robot"]["speed"]))
-    self.tcp_host_input.setText(config["tcp"]["host"])
-    self.tcp_port_input.setText(str(config["tcp"]["port"]))
     self.stream_host_input.setText(config["stream"]["host"])
     self.stream_port_input.setText(str(config["stream"]["port"]))
+    self.y_offset_input.setText(str(config["robot"]["y_offset"]))
+    self.y_offset_factor_input.setText(str(config["robot"]["y_offset_factor"]))
+    self.tcp_host_input.setText(config["tcp"]["host"])
+    self.tcp_port_input.setText(str(config["tcp"]["port"]))
     self.db_host_input.setText(config["db"]["host"])
     self.db_port_input.setText(str(config["db"]["port"]))
 
@@ -162,3 +164,20 @@ def toggle_dark_mode(self, dark_mode: bool) -> None:
     """
     save_config(self, dark_mode = dark_mode)
     set_style_sheet(self)
+
+
+async def send_to_db_test(self) -> None:
+    """
+    Sends a test message to the database.
+
+    Args:
+        self: The main window object.
+    """
+    response = await self.db.generate_robot_struct(
+        color = "blue",
+        temperature = uniform(5.0, 30.0),
+        humidity = uniform(20.0, 80.0),
+        timestamp = "2025-06-10 15:30:00",
+        energy_consume = uniform(5.0, 30.0),
+        energy_cost = uniform(1.0, 100.0)
+    )

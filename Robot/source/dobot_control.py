@@ -93,9 +93,8 @@ class DoBotControl():
         Args:
             speed (int): The speed to set for the robot.
         """
-        # FIXME: Wieder wert auf 2000 setzen
-        if speed > 1000:
-            speed = 1000
+        if speed > 2000:
+            speed = 2000
         elif speed < 100:
             speed = 100
         self.speed: int = speed
@@ -196,6 +195,7 @@ if __name__ == "__main__":
         step = 1
         while dobot_control.connected:
             try:
+                x, y, z, r = dobot_control.get_current_robot_pos()
                 if is_pressed("w"):
                     x += step
                 if is_pressed("s"):
@@ -212,7 +212,7 @@ if __name__ == "__main__":
                     r -= step
                 if is_pressed("right"):
                     r += step
-                # FIXME: Move
+                dobot_control.move_to_position(x, y, z, r)
                 sleep(0.1)
             except:
                 pass
