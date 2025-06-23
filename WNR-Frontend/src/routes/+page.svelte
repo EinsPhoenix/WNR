@@ -5,8 +5,7 @@
   import { BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
   import dayjs from 'dayjs';
   import weekday from 'dayjs/plugin/weekday.js';
-  import { mqttData, initMqtt } from "$lib/stores/mqttClient";
-
+  import { mqttData, liveData, initMqtt } from "$lib/stores/mqttClient";
 
   dayjs.extend(weekday);
   Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -20,40 +19,44 @@
   let chart3: Chart<'bar'>;
   let barChart1: HTMLCanvasElement;
 
+  let buildNumber = '';
+  let buildColor = '';
+  let id = '';
+
+  const MAX_POINTS = 30;
 
   const data: ChartData<'line'> = {
-    labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
+    labels: [],
     datasets: [{
+      label: 'Energy Cost',
       cubicInterpolationMode: 'monotone',
       tension: 0.8,
-      data: [12, 19, 3, 5, 2, 3, 9],
-      backgroundColor: Array(7).fill('rgba(255, 198, 255, 1)'),
-      borderColor: Array(7).fill('rgba(255, 198, 255, 1)'),
+      data: [],
+      backgroundColor: 'rgba(220, 150, 220, 1)',
+      borderColor: 'rgba(220, 150, 220, 1)',
       borderWidth: 3
     }]
   };
 
   const options: ChartOptions<'line'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
 
-
-  // TODO
   const data2: ChartData<'line'> = {
-    labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
+    labels: [],
     datasets: [
       {
+        label: 'Temperature',
         cubicInterpolationMode: 'monotone',
         tension: 0.8,
-        label: 'Temperature',
-        data: [22, 21, 23, 24, 22, 25, 26],
+        data: [],
         borderColor: '#FFADAD',
         backgroundColor: 'rgba(255,0,0,0.1)',
         yAxisID: 'y',
       },
       {
+        label: 'Humidity',
         cubicInterpolationMode: 'monotone',
         tension: 0.8,
-        label: 'Humidity',
-        data: [40, 42, 38, 35, 37, 39, 41],
+        data: [],
         borderColor: '#A0C4FF',
         backgroundColor: 'rgba(0,0,255,0.1)',
         yAxisID: 'y1',
@@ -73,26 +76,69 @@
   };
 
   const data3: ChartData<'bar'> = {
-    labels: [...Array(7)].map((_, i) => dayjs().subtract(6 - i, 'day').format('DD.MM')),
+    labels: [],
     datasets: [{
-      data: [12, 19, 3, 5, 2, 3, 9],
-      backgroundColor: Array(7).fill('rgba(255, 198, 255, 1)'),
-      borderColor: Array(7).fill('rgba(255, 198, 255, 1)'),
+      label: 'Production per day',
+      data: [],
+      backgroundColor: 'rgba(220, 150, 220, 1)',
+      borderColor: 'rgba(220, 150, 220, 1)',
       borderWidth: 3
     }]
   };
 
   const options3: ChartOptions<'bar'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
 
-  onMount(() => {
+  function updateCharts(payload: any) {
+    if (!payload?.data?.length) return;
 
+    const latest = payload.data.at(-1);
+    const timestamp = dayjs(latest.timestamp || latest.date).format('HH:mm:ss');
+    buildNumber = dayjs(latest.timestamp).format('DD.MM.YYYY');
+    buildColor = latest.color;
+    id = payload.ids[0]?.id;
+
+    // Chart 1
+    data.labels.push(timestamp);
+    data.datasets[0].data.push(latest.energy_cost);
+    if (data.labels.length > MAX_POINTS) {
+      data.labels.shift();
+      data.datasets[0].data.shift();
+    }
+
+    // Chart 2
+    data2.labels.push(timestamp);
+    data2.datasets[0].data.push(latest.sensor_data?.temperature ?? null);
+    data2.datasets[1].data.push(latest.sensor_data?.humidity ?? null);
+    if (data2.labels.length > MAX_POINTS) {
+      data2.labels.shift();
+      data2.datasets[0].data.shift();
+      data2.datasets[1].data.shift();
+    }
+
+    // Chart 3
+    data3.labels.push(timestamp);
+    data3.datasets[0].data.push(latest.energy_consume);
+    if (data3.labels.length > MAX_POINTS) {
+      data3.labels.shift();
+      data3.datasets[0].data.shift();
+    }
+
+    chart1.update();
+    chart2.update();
+    chart3.update();
+  }
+
+  onMount(() => {
     initMqtt();
 
     chart1 = new Chart(energycost, { type: 'line', data, options });
     chart2 = new Chart(multiAxis, { type: 'line', data: data2, options: options2 });
     chart3 = new Chart(barChart1, { type: 'bar', data: data3, options: options3 });
 
+    const unsubscribe = liveData.subscribe(value => updateCharts(value));
+
     return () => {
+      unsubscribe();
       chart1?.destroy();
       chart2?.destroy();
       chart3?.destroy();
@@ -106,26 +152,66 @@
   });
 </script>
 
-<div class="wrapper">
 
+<div class="wrapper">
   <div class="box box1">
     <div class="information-wrapper">
-      <div class="energy-cost box-title2">
+      <!-- <div class="energy-cost box-title2">
         Energy costs:
         <div class="cost-number">254 €</div>
         <div class="cost-percentage">-33%</div>
+      </div> -->
+
+      <div class="energy-cost box-title2">
+        Energy costs:
+        <div class="cost-number">254 €</div>
+        <div class="cost-percentage">
+          -33%
+          <svg
+            class="cost-icon"
+            width="17"
+            height="17"
+            viewBox="0 0 10 10"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <polygon points="5,0 10,10 0,10" />
+          </svg>
+        </div>
       </div>
+
+
+
       <div class="border"></div>
       <div class="speed box-title2">
         Speed:
         <div class="speed-number">52/h</div>
-        <div class="speed-percentage">+0%</div>
+        <div class="speed-percentage">+0%
+          <svg
+            class="cost-icon"
+            width="17"
+            height="17"
+            viewBox="0 0 10 10"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <polygon points="5,0 10,10 0,10" />
+          </svg>
+        </div>
       </div>
       <div class="border"></div>
       <div class="fail box-title2">
         Failures:
         <div class="fail-number">0</div>
-        <div class="fail-percentage">-12%</div>
+        <div class="fail-percentage">-12%
+          <svg
+            class="cost-icon-bad"
+            width="17"
+            height="17"
+            viewBox="0 0 10 10"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <polygon points="5,0 10,10 0,10" />
+          </svg>
+        </div>
       </div>
     </div>
   </div>
@@ -135,15 +221,15 @@
     <div class="box2-wrapper">
       <div class="build">
         Manufacturing:
-        <div class="build-number">24.04.2025</div>
+        <div class="build-number">{buildNumber}</div>
       </div>
       <div class="color">
         Color:
-        <div class="color-number">Blue</div>
+        <div class="color-number" style="background-color: {buildColor}">{buildColor}</div>
       </div>
       <div class="index">
         Component number:
-        <div class="index-number">X1234</div>
+        <div class="index-number">{id}</div>
       </div>
     </div>
   </div>
@@ -164,7 +250,23 @@
   </div>
 </div>
 
+
 <style>
+
+    .cost-icon {
+      fill: green; /* oder green */
+      transform: rotate(0deg); /* oder 180deg für Pfeil nach oben */
+    }
+
+    .cost-icon-bad {
+      fill: red; /* oder green */
+      transform: rotate(0deg); /* oder 180deg für Pfeil nach oben */
+    }
+
+    svg {
+      margin-left: 10px;
+    }
+
     .build {
         display: flex;
         width: 100%;
@@ -264,10 +366,15 @@
         /* background: var(--pastel-green-color); */
         /* -webkit-background-clip: text; */
         /* -webkit-text-fill-color: transparent; */
-        color: var(--pastel-green-color);
-        text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8);
-        font-weight: bolder;
+
+        /* color: var(--pastel-green-color); */
+        color: rgb(87, 87, 87);
+        /* text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8); */
+        /* font-weight: bolder; */
         font-size: 1.2rem;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
     }
 
     .speed {
@@ -287,10 +394,15 @@
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent; */
 
-        color: var(--pastel-green-color);
-        text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8);
-        font-weight: bolder;
+        /* color: var(--pastel-green-color); */
+        color: rgb(87, 87, 87);
+
+        /* text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8); */
+        /* font-weight: bolder; */
         font-size: 1.2rem;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
     }
 
     .fail {
@@ -312,10 +424,14 @@
 
 
 
-        color: var(--pastel-red-color);
-        text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8);
-        font-weight: bolder;
+        /* color: var(--pastel-red-color); */
+        /* text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.8); */
+        color: rgb(87, 87, 87);
+        /* font-weight: bolder; */
         font-size: 1.2rem;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
     }
 
     .information-wrapper {
@@ -330,7 +446,7 @@
         margin-top: -30px;
         flex: 1;
         display: grid;
-        gap: 10px;
+        gap: 20px;
         grid-template-columns: repeat(22, 1fr);
         grid-template-rows: repeat(22, 1fr);
         margin-left: var(--navbar-width);
@@ -369,16 +485,17 @@
     }
 
     .box {
-        border: solid var(--pastel-pink-color) 4px;
+        /* border: solid var(--pastel-pink-color) 4px; */
         padding: 20px;
         text-align: center;
         background-color: var(--pastel-white-color);
-        border-radius: 6px;
+        border-radius: 16px;
         transition: transform 0.3s ease-in-out;
     }
 
     .box:hover {
         transform: scale(1.02);
+        box-shadow: 0 0 10px 2px #BDB2FF, 0 0 1px 4px #BDB2FF inset;
     }
 
     .box1 {

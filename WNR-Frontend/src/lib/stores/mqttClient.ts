@@ -86,7 +86,7 @@
 import { writable } from 'svelte/store';
 
 export const mqttData = writable<any[]>([]);
-export const livedata = writable<any[]>([]);
+export const liveData = writable<any[]>([]);
 
 let client: any;
 
@@ -96,17 +96,38 @@ export function initMqtt() {
     console.error('MQTT global not found: no mqtt.min.js import found');
     return;
   }
-  client = window.mqtt.connect('ws://localhost:9001');
+
+  const options = {
+    username: 'admin',
+    password: 'admin',
+    protocol: 'ws',
+  };
+
+  client = window.mqtt.connect('ws://192.168.1.100:9001', options);
 
   client.on('connect', () => {
     console.log('Connected to MQTT');
-    client.subscribe('dobot/data/all');
+    client.subscribe('rust/response/livedata');
   });
+
+  client.on('reconnect', () => {
+    console.log("mqtt reconnecting");
+  })
 
   client.on('message', (topic, message) => {
     try {
       const data = JSON.parse(message.toString());
-      mqttData.update((items) => [data, ...items]);
+      localStorage.setItem("data", JSON.stringify(data));
+      liveData.set(data); // this for the charts
+      // mqttData.update((items) => [data, ...items]); // this for the navbar items
+      console.log(data);
+
+      mqttData.update((items) =>
+        [data, ...items].sort((b, a) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 50)
+      );
+
+      // mqttData.update((items) => [data, ...items]);
+      // console.log(data);
     } catch (e) {
       console.error('Invalid JSON from MQTT', e);
     }
