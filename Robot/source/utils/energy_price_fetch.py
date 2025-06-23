@@ -27,13 +27,15 @@ class EnergyPriceFetcher:
 
     def process_api_data_for_database(self, api_data):
         """Process API response data for database insertion."""
-        if not api_data or 'data' not in api_data:
+        if not api_data or "data" not in api_data:
             return []
         processed_data = []
-        for entry in api_data['data']:
+        for entry in api_data["data"]:
             processed_entry = {
-                "timestamp": self.timestamp_to_datetime_string(entry['start_timestamp']),
-                "energy_cost": entry['marketprice']
+                "timestamp": self.timestamp_to_datetime_string(
+                    entry["start_timestamp"]
+                ),
+                "energy_cost": entry["marketprice"],
             }
             processed_data.append(processed_entry)
         return processed_data
@@ -43,16 +45,16 @@ class EnergyPriceFetcher:
         if not os.path.exists(self.json_file_path):
             return True
         try:
-            with open(self.json_file_path, 'r', encoding='utf-8') as f:
+            with open(self.json_file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            last_fetch = data.get('last_fetch_timestamp')
+            last_fetch = data.get("last_fetch_timestamp")
             if not last_fetch:
                 return True
-            # Convert to seconds for comparison
+
             last_fetch_time = datetime.fromtimestamp(last_fetch / 1000)
             current_time = datetime.now()
             time_diff = current_time - last_fetch_time
-            if time_diff.total_seconds() > 24 * 3600:  # 24 hours in seconds
+            if time_diff.total_seconds() > 24 * 3600:
                 return True
             else:
                 return False
@@ -62,23 +64,22 @@ class EnergyPriceFetcher:
     async def fetch_energy_data(self):
         """Fetch energy data from the API."""
         start_timestamp, end_timestamp = self.get_timestamps()
-        params = {
-            'start': start_timestamp,
-            'end': end_timestamp
-        }
+        params = {"start": start_timestamp, "end": end_timestamp}
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.api_url, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        # Add metadata
+
                         result = {
-                            'last_fetch_timestamp': int(datetime.now().timestamp() * 1000),
-                            'fetch_params': {
-                                'start': start_timestamp,
-                                'end': end_timestamp
+                            "last_fetch_timestamp": int(
+                                datetime.now().timestamp() * 1000
+                            ),
+                            "fetch_params": {
+                                "start": start_timestamp,
+                                "end": end_timestamp,
                             },
-                            'api_response': data
+                            "api_response": data,
                         }
                         return result
                     else:
@@ -89,7 +90,7 @@ class EnergyPriceFetcher:
     def save_data(self, data):
         """Save data to JSON file."""
         try:
-            with open(self.json_file_path, 'w', encoding='utf-8') as f:
+            with open(self.json_file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             return True
         except Exception as e:
@@ -100,7 +101,7 @@ class EnergyPriceFetcher:
         if not os.path.exists(self.json_file_path):
             return None
         try:
-            with open(self.json_file_path, 'r', encoding='utf-8') as f:
+            with open(self.json_file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             return None
@@ -109,15 +110,15 @@ class EnergyPriceFetcher:
         """Send processed energy data to database."""
         try:
             if await self.parent.db.connect():
-                response = await self.parent.db.generate_energydata_struct(processed_data)
-                if response and response.get('status') == 'success':
+                response = await self.parent.db.generate_energydata_struct(
+                    processed_data
+                )
+                if response and response.get("status") == "success":
                     return True
-                else:
-                    return False
-            else:
-                return False
         except Exception as e:
+
             return False
+        return False
 
     async def run_daily_fetch(self):
         """Main method to run the daily fetch process."""
@@ -125,15 +126,23 @@ class EnergyPriceFetcher:
             data = await self.fetch_energy_data()
             if data:
                 if self.save_data(data):
-                    processed_data = self.process_api_data_for_database(data['api_response'])
+                    processed_data = self.process_api_data_for_database(
+                        data["api_response"]
+                    )
                     if processed_data:
-                        await self.send_to_database(processed_data)
-                        return True
-                    else:
-                        return False
-                else:
-                    return False
+                        if await self.send_to_database(processed_data):
+                            return True
+
+                return False
             else:
+                old_data = self.load_data()
+                if old_data:
+                    processed_data = self.process_api_data_for_database(
+                        old_data.get("api_response")
+                    )
+                    if processed_data:
+                        if await self.send_to_database(processed_data):
+                            return True
                 return False
         else:
             return True
