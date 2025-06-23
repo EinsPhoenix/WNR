@@ -21,7 +21,7 @@ This project is a simple React application that implements an MQTT client using 
 2. Install the dependencies:
 
    ```
-   npm install
+   npm install --force
    ```
 
 ### Running the Application

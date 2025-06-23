@@ -1,0 +1,86 @@
+{
+  "testView": {
+    "title": "MQTT Request Tester",
+    "clientId": "Client ID",
+    "requestType": "Request Type",
+    "jsonData": "JSON Data",
+    "sendRequest": "Send Request",
+    "sending": "Sending...",
+    "previous": "Previous",
+    "next": "Next",
+    "errorPrefix": "Error",
+    "loadingResponse": "Loading response...",
+    "paginationProgress": "Pagination Progress",
+    "paginationStatus": "Page {{displayPageNumber}} of {{totalPages}} (Received {{receivedCount}})",
+    "sentPayload": "Sent Payload",
+    "responseData": "Response Data",
+    "responseDataForPage": "Data for Page {{displayPageNumber}}",
+    "rawMqttLog": "Raw MQTT Log",
+    "errorMqttNotConnected": "MQTT client not connected.",
+    "errorInvalidJson": "Invalid JSON: {{message}}",
+    "errorFailedToPublish": "Failed to publish: {{message}}",
+    "errorFailedToParseMqtt": "Failed to parse MQTT message: {{message}}"
+  },
+  "requestTypes": {
+    "uuid": "UUID",
+    "all": "All Data",
+    "color": "Nodes by Color",
+    "time_range": "Nodes by Time Range",
+    "temperature_humidity": "Nodes by Temp/Humidity",
+    "timestamp": "Temp/Humidity at Timestamp",
+    "id_energy_cost": "Nodes by Energy Cost (>=)",
+    "id_energy_consume": "Nodes by Energy Consumption (>=)",
+    "newestids": "Newest IDs",
+    "newestsensordata": "Newest Sensor Data",
+    "newestenergydata": "Newest Energy Data",
+    "addrobotdata": "Add Robot Data",
+    "addenergydata": "Add Energy Data",
+    "addsensordata": "Add Sensor Data",
+    "relation": "Export All with Relationships",
+    "page": "Paginated IDs",
+    "delete": "Delete Data by ID(s)",
+    "cheap_energy": "Cheap Energy Data"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "video": "Video",
+    "test": "Test",
+    "cheapEnergy": "Cheap Energy"
+  },
+  "dashboard": {
+    "title": "Live Data Dashboard",
+    "tempChartTitle": "Temperature (°C)",
+    "humidityChartTitle": "Humidity (%)",
+    "consumptionChartTitle": "Energy Consumption (W)",
+    "costChartTitle": "Energy Cost (€/mWh)",
+    "tempLegend": "Temperature",
+    "humidityLegend": "Humidity",
+    "consumptionLegend": "Consumption",
+    "costLegend": "Cost",
+    "waitingForData": "Waiting for data..."
+  },
+  "cheapEnergy": {
+    "title": "Cheapest Energy Times",
+    "loading": "Loading data...",
+    "costLegend": "Energy Cost",
+    "noDataTitle": "NOTHING TO SEE HERE",
+    "noDataText": "ENERGY API NOT AVAILABLE"
+  },
+  "video": {
+    "pause": "Pause",
+    "resume": "Resume",
+    "rewind": "Rewind 10s",
+    "fullscreen": "Fullscreen",
+    "maximize": "Maximize",
+    "miniPlayer": "Mini-Player",
+    "close": "Close",
+    "status": "Status: {{status}}",
+    "connectionFailed": "Connection failed.",
+    "reconnecting": "Reconnecting...",
+    "timeline": "Timeline"
+  },
+  "app": {
+    "connecting": "Connecting to MQTT broker...",
+    "cheapEnergyError": "Error processing energy data."
+  }
+}

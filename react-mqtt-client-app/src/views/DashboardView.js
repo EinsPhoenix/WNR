@@ -1,8 +1,10 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './DashboardView.css';
+import { useTranslation } from 'react-i18next';
 
 const DashboardView = ({ temperatureData, humidityData, energyConsumptionData, energyCostData }) => {
+    const { t } = useTranslation();
 
     const renderChart = (title, data, dataKey, strokeColor, name, unit) => (
         <div className="chart-container">
@@ -18,18 +20,18 @@ const DashboardView = ({ temperatureData, humidityData, energyConsumptionData, e
                         <Line type="monotone" dataKey={dataKey} stroke={strokeColor} name={name} dot={false} strokeWidth={2} unit={unit} />
                     </LineChart>
                 </ResponsiveContainer>
-            ) : <p className="waiting-text">Warte auf Daten...</p>}
+            ) : <p className="waiting-text">{t('dashboard.waitingForData')}</p>}
         </div>
     );
 
     return (
         <div className="dashboard-view">
-            <h2>Live Daten Dashboard</h2>
+            <h2>{t('dashboard.title')}</h2>
             <div className="charts-grid">
-                {renderChart("Temperatur (°C)", temperatureData.slice(-10), "value", "#8884d8", "Temperatur", "°C")}
-                {renderChart("Luftfeuchtigkeit (%)", humidityData.slice(-10), "value", "#82ca9d", "Feuchtigkeit", "%")}
-                {renderChart("Energieverbrauch (W)", energyConsumptionData.slice(-10), "value", "#ffc658", "Verbrauch", "W")}
-                {renderChart("Energiekosten (€/mWh)", energyCostData.slice(-10), "value", "#ff7300", "Kosten", "€/mWh")}
+                {renderChart(t('dashboard.tempChartTitle'), temperatureData.slice(-10), "value", "var(--pastel-red-color)", t('dashboard.tempLegend'), "°C")}
+                {renderChart(t('dashboard.humidityChartTitle'), humidityData.slice(-10), "value", "var(--pastel-green-color)", t('dashboard.humidityLegend'), "%")}
+                {renderChart(t('dashboard.consumptionChartTitle'), energyConsumptionData.slice(-10), "value", "var(--pastel-yellow-color)", t('dashboard.consumptionLegend'), "W")}
+                {renderChart(t('dashboard.costChartTitle'), energyCostData.slice(-10), "value", "var(--pastel-orange-color)", t('dashboard.costLegend'), "€/mWh")}
             </div>
         </div>
     );

@@ -1,8 +1,10 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import './CheapEnergyView.css';
+import { useTranslation } from 'react-i18next';
 
 const CheapEnergyView = ({ energyData, isLoading, error }) => {
+    const { t } = useTranslation();
 
     const formatXAxis = (tickItem) => {
         try {
@@ -17,8 +19,8 @@ const CheapEnergyView = ({ energyData, isLoading, error }) => {
 
     return (
         <div className="cheap-energy-view">
-            <h2>Günstigste Energiezeiten</h2>
-            {isLoading && <p className="status-text">Lade Daten...</p>}
+            <h2>{t('cheapEnergy.title')}</h2>
+            {isLoading && <p className="status-text">{t('cheapEnergy.loading')}</p>}
             {error && <p className="status-text error-text">{error}</p>}
             
             {hasData && (
@@ -30,24 +32,29 @@ const CheapEnergyView = ({ energyData, isLoading, error }) => {
                         >
                             <defs>
                                 <linearGradient id="gradient-green" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#2ecc71" stopOpacity={0.9}/>
-                                    <stop offset="95%" stopColor="#27ae60" stopOpacity={1}/>
+                                    <stop offset="5%" stopColor="var(--pastel-green-color)" stopOpacity={0.9}/>
+                                    <stop offset="95%" stopColor="var(--pastel-green-color)" stopOpacity={1}/>
                                 </linearGradient>
                                 <linearGradient id="gradient-red" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#e74c3c" stopOpacity={0.9}/>
-                                    <stop offset="95%" stopColor="#c0392b" stopOpacity={1}/>
+                                    <stop offset="5%" stopColor="var(--pastel-red-color)" stopOpacity={0.9}/>
+                                    <stop offset="95%" stopColor="var(--pastel-red-color)" stopOpacity={1}/>
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                            <XAxis dataKey="timestamp" stroke="#ccc" tickFormatter={formatXAxis} />
-                            <YAxis stroke="#ccc" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
+                            <XAxis dataKey="timestamp" stroke="var(--pastel-white-color)" tickFormatter={formatXAxis} />
+                            <YAxis stroke="var(--pastel-white-color)" />
                             <Tooltip
-                                contentStyle={{ backgroundColor: '#333', border: '1px solid #555' }}
+                                contentStyle={{ 
+                                    backgroundColor: 'rgba(44, 62, 80, 0.8)', 
+                                    border: '1px solid var(--primary-color)',
+                                    borderRadius: '8px',
+                                    color: 'var(--pastel-white-color)'
+                                }}
                                 labelFormatter={(label) => new Date(label).toLocaleString('de-DE')}
-                                cursor={{ fill: 'transparent' }}
+                                cursor={{ fill: 'rgba(255,255,255,0.1)' }}
                             />
-                            <Legend />
-                            <Bar dataKey="energy_cost" name="Energiekosten" unit=" €/mWh" className="energy-bar">
+                            <Legend wrapperStyle={{color: 'var(--pastel-white-color)'}}/>
+                            <Bar dataKey="energy_cost" name={t('cheapEnergy.costLegend')} unit=" €/mWh" className="energy-bar">
                                 {energyData.map((entry, index) => (
                                     <Cell
                                         key={`cell-${index}`}
@@ -62,8 +69,8 @@ const CheapEnergyView = ({ energyData, isLoading, error }) => {
 
             {showNoDataMessage && (
                 <div className="no-data-message">
-                    <h3>HIER NIX ZU SEHEN</h3>
-                    <p>ENERGY API NIX DA</p>
+                    <h3>{t('cheapEnergy.noDataTitle')}</h3>
+                    <p>{t('cheapEnergy.noDataText')}</p>
                 </div>
             )}
         </div>

@@ -1,0 +1,86 @@
+{
+  "testView": {
+    "title": "MQTT-Anfrage-Tester",
+    "clientId": "Client-ID",
+    "requestType": "Anfragetyp",
+    "jsonData": "JSON-Daten",
+    "sendRequest": "Anfrage senden",
+    "sending": "Sende...",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "errorPrefix": "Fehler",
+    "loadingResponse": "Lade Antwort...",
+    "paginationProgress": "Paginierungsfortschritt",
+    "paginationStatus": "Seite {{displayPageNumber}} von {{totalPages}} (Empfangen {{receivedCount}})",
+    "sentPayload": "Gesendete Nutzlast",
+    "responseData": "Antwortdaten",
+    "responseDataForPage": "Daten für Seite {{displayPageNumber}}",
+    "rawMqttLog": "Rohes MQTT-Protokoll",
+    "errorMqttNotConnected": "MQTT-Client nicht verbunden.",
+    "errorInvalidJson": "Ungültiges JSON: {{message}}",
+    "errorFailedToPublish": "Senden fehlgeschlagen: {{message}}",
+    "errorFailedToParseMqtt": "Parsen der MQTT-Nachricht fehlgeschlagen: {{message}}"
+  },
+  "requestTypes": {
+    "uuid": "UUID",
+    "all": "Alle Daten",
+    "color": "Knoten nach Farbe",
+    "time_range": "Knoten nach Zeitbereich",
+    "temperature_humidity": "Knoten nach Temp/Feuchtigkeit",
+    "timestamp": "Temp/Feuchtigkeit nach Zeitstempel",
+    "id_energy_cost": "Knoten nach Energiekosten (>=)",
+    "id_energy_consume": "Knoten nach Energieverbrauch (>=)",
+    "newestids": "Neueste IDs",
+    "newestsensordata": "Neueste Sensordaten",
+    "newestenergydata": "Neueste Energiedaten",
+    "addrobotdata": "Roboterdaten hinzufügen",
+    "addenergydata": "Energiedaten hinzufügen",
+    "addsensordata": "Sensordaten hinzufügen",
+    "relation": "Alle mit Beziehungen exportieren",
+    "page": "Paginierte IDs",
+    "delete": "Daten nach ID(s) löschen",
+    "cheap_energy": "Günstige Energiedaten"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "video": "Video",
+    "test": "Test",
+    "cheapEnergy": "Billige Energie"
+  },
+  "dashboard": {
+    "title": "Live Daten Dashboard",
+    "tempChartTitle": "Temperatur (°C)",
+    "humidityChartTitle": "Luftfeuchtigkeit (%)",
+    "consumptionChartTitle": "Energieverbrauch (W)",
+    "costChartTitle": "Energiekosten (€/mWh)",
+    "tempLegend": "Temperatur",
+    "humidityLegend": "Feuchtigkeit",
+    "consumptionLegend": "Verbrauch",
+    "costLegend": "Kosten",
+    "waitingForData": "Warte auf Daten..."
+  },
+  "cheapEnergy": {
+    "title": "Günstigste Energiezeiten",
+    "loading": "Lade Daten...",
+    "costLegend": "Energiekosten",
+    "noDataTitle": "HIER NIX ZU SEHEN",
+    "noDataText": "ENERGY API NIX DA"
+  },
+  "video": {
+    "pause": "Pause",
+    "resume": "Fortsetzen",
+    "rewind": "10s zurück",
+    "fullscreen": "Vollbild",
+    "maximize": "Maximieren",
+    "miniPlayer": "Mini-Player",
+    "close": "Schließen",
+    "status": "Status: {{status}}",
+    "connectionFailed": "Verbindung fehlgeschlagen.",
+    "reconnecting": "Verbindung wird wiederhergestellt...",
+    "timeline": "Zeitleiste"
+  },
+  "app": {
+    "connecting": "Verbinde mit MQTT-Broker...",
+    "cheapEnergyError": "Fehler beim Verarbeiten der Energiedaten."
+  }
+}

@@ -1,19 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import mqtt from 'mqtt';
+import './App.css';
 import Sidebar from './components/Sidebar';
 import DashboardView from './views/DashboardView';
 import TestView from './views/TestView';
-import VideoView from './views/VideoView';
 import CheapEnergyView from './views/CheapEnergyView';
-import './App.css';
+import VideoView from './views/VideoView';
+import { useTranslation } from 'react-i18next';
 
+const MAX_FRAMES = 120; 
 const generateId = () => `react-client-${Math.random().toString(16).substr(2, 8)}`;
 
 function App() {
+  const { t } = useTranslation();
   const [client, setClient] = useState(null);
   const [connectStatus, setConnectStatus] = useState('Disconnected');
   const [activeView, setActiveView] = useState('dashboard');
   const [videoState, setVideoState] = useState({ isVisible: false, isMini: false });
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentFrame, setCurrentFrame] = useState(null);
+  const [pauseTimestamp, setPauseTimestamp] = useState(null);
 
   const [temperatureData, setTemperatureData] = useState([]);
   const [humidityData, setHumidityData] = useState([]);
@@ -30,9 +36,10 @@ function App() {
   const wsRef = useRef(null);
   const frameBufferRef = useRef(new Map());
   const mqttClientRef = useRef(null);
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
 
   useEffect(() => {
-    
     if (mqttClientRef.current) {
       return;
     }
@@ -52,8 +59,8 @@ function App() {
 
     setConnectStatus('Connecting');
     const mqttClient = mqtt.connect(host, options);
-    mqttClientRef.current = mqttClient; 
-    setClient(mqttClient); 
+    mqttClientRef.current = mqttClient;
+    setClient(mqttClient);
 
     return () => {
       if (mqttClientRef.current) {
@@ -62,18 +69,15 @@ function App() {
         mqttClientRef.current = null;
       }
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
     if (!client) return;
 
     const handleConnect = () => setConnectStatus('Connected');
-    
     const handleError = (err) => {
-      
       console.error('App: MQTT Connection error: ', err);
     };
-
     const handleReconnect = () => setConnectStatus('Reconnecting');
     const handleClose = () => setConnectStatus('Disconnected');
 
@@ -109,8 +113,11 @@ function App() {
         if (err) console.error(`[App] Subscription error to ${liveDataTopic}:`, err);
       });
       return () => {
-        console.error(` Subscription error`);
-        if (client.connected) client.unsubscribe(liveDataTopic);
+        if (client && client.connected) {
+            client.unsubscribe(liveDataTopic, (err) => {
+                if (err) console.error(`[App] Error unsubscribing from ${liveDataTopic}:`, err);
+            });
+        }
       };
     }
   }, [client, client?.connected]);
@@ -132,44 +139,44 @@ function App() {
 
       client.subscribe(subscriptionTopic, { qos: 1 }, (err) => {
         if (err) {
-          setCheapEnergyError('Fehler beim Abonnieren des MQTT-Topics.');
+          setCheapEnergyError(t('app.cheapEnergyError'));
           setIsCheapEnergyLoading(false);
         } else {
           client.publish(requestTopic, JSON.stringify(requestPayload), { qos: 1 }, (pubErr) => {
             if (pubErr) {
-              setCheapEnergyError('Fehler beim Senden der MQTT-Anfrage.');
+              setCheapEnergyError(t('app.cheapEnergyError'));
               setIsCheapEnergyLoading(false);
             }
           });
         }
       });
       
+      return () => {
+        if (client && client.connected) {
+          client.unsubscribe(subscriptionTopic);
+        }
+      };
     }
-  }, [client, client?.connected]);
+  }, [client, client?.connected, t]);
 
   useEffect(() => {
-    
     if (!videoState.isVisible) {
       return;
     }
 
     let ws;
-    
     setVideoConnectionStatus('connecting');
     try {
       ws = new WebSocket('ws://localhost:1337');
       wsRef.current = ws;
 
       ws.onopen = () => setVideoConnectionStatus('connected');
-      
       ws.onclose = () => {
-        
         if (wsRef.current === ws) {
           setVideoConnectionStatus('disconnected');
           wsRef.current = null;
         }
       };
-      
       ws.onerror = () => {
         if (wsRef.current === ws) {
           setVideoConnectionStatus('error');
@@ -189,10 +196,13 @@ function App() {
                 const now = Date.now();
                 const newFrame = { frame: completeFrame, timestamp: now };
                 setVideoFramesCache(prevCache => {
-                    const tenSecondsAgo = Date.now() - 10000;
-                    const filteredCache = prevCache.filter(f => f.timestamp > tenSecondsAgo);
+                    const fortySecondsAgo = Date.now() - 40000; // 40s Puffer
+                    const filteredCache = prevCache.filter(f => f.timestamp > fortySecondsAgo);
                     return [...filteredCache, newFrame];
                 });
+                if (!isPausedRef.current) {
+                    setCurrentFrame(newFrame);
+                }
                 frameBufferRef.current.delete(data.frame_index);
               }
             }
@@ -212,7 +222,6 @@ function App() {
 
     return () => {
       if (ws) {
-        
         ws.onopen = null;
         ws.onclose = null;
         ws.onerror = null;
@@ -223,7 +232,7 @@ function App() {
         }
       }
     };
-  }, [videoState.isVisible]); 
+  }, [videoState.isVisible]);
 
   const handleLiveDataMessage = (messageString) => {
     try {
@@ -257,7 +266,7 @@ function App() {
         setCheapEnergyData(sortedData);
       }
     } catch (e) {
-      setCheapEnergyError('Fehler beim Verarbeiten der Energiedaten.');
+      setCheapEnergyError(t('app.cheapEnergyError'));
       setCheapEnergyData([]);
     } finally {
       setIsCheapEnergyLoading(false);
@@ -277,12 +286,10 @@ function App() {
     setVideoState(prevState => {
       const newIsMini = !prevState.isMini;
       if (newIsMini) {
-        
         if (activeView === 'video') {
           setActiveView('dashboard');
         }
       } else {
-        
         setActiveView('video');
       }
       return { isVisible: true, isMini: newIsMini };
@@ -296,16 +303,67 @@ function App() {
     }
   };
 
+  const handleTogglePause = () => {
+    const newIsPaused = !isPaused;
+    setIsPaused(newIsPaused);
+
+    if (newIsPaused) {
+      setPauseTimestamp(currentFrame?.timestamp || Date.now());
+    } else {
+      setPauseTimestamp(null);
+      if (videoFramesCache.length > 0) {
+        setCurrentFrame(videoFramesCache[videoFramesCache.length - 1]);
+      }
+    }
+  };
+
+  const handleRewind = () => {
+    if (!isPaused || !currentFrame) return;
+    const targetTimestamp = currentFrame.timestamp - 5000; 
+    let newFrame = null;
+    for (let i = videoFramesCache.length - 1; i >= 0; i--) {
+      if (videoFramesCache[i].timestamp <= targetTimestamp) {
+        newFrame = videoFramesCache[i];
+        break;
+      }
+    }
+    if (!newFrame && videoFramesCache.length > 0) {
+      newFrame = videoFramesCache[0];
+    }
+    if (newFrame) {
+      setCurrentFrame(newFrame);
+    }
+  };
+
+  const handleSeek = (timestamp) => {
+    if (!isPaused || videoFramesCache.length === 0) return;
+    const closestFrame = videoFramesCache.reduce((prev, curr) => 
+      (Math.abs(curr.timestamp - timestamp) < Math.abs(prev.timestamp - timestamp) ? curr : prev)
+    );
+    if (closestFrame) {
+      setCurrentFrame(closestFrame);
+    }
+  };
+
   const isMqttConnected = client && connectStatus === 'Connected';
-  const latestFrame = videoFramesCache.length > 0 ? videoFramesCache[videoFramesCache.length - 1].frame : null;
 
   const videoPlayer = (
     <VideoView
       isMini={videoState.isMini}
       onToggleMini={handleToggleMiniPlayer}
       onClose={handleCloseVideo}
-      frameData={latestFrame}
+      frameData={currentFrame?.frame || null}
       connectionStatus={videoConnectionStatus}
+      isPaused={isPaused}
+      onTogglePause={handleTogglePause}
+      onRewind={handleRewind}
+      onSeek={handleSeek}
+      cacheInfo={{
+        oldest: videoFramesCache[0]?.timestamp,
+        newest: isPaused ? pauseTimestamp : videoFramesCache[videoFramesCache.length - 1]?.timestamp,
+      }}
+      currentTimestamp={currentFrame?.timestamp}
+      showPlaybackControls={isPaused}
     />
   );
 
@@ -320,17 +378,17 @@ function App() {
             humidityData={humidityData}
             energyConsumptionData={energyConsumptionData}
             energyCostData={energyCostData}
-          /> : <p>Verbinde mit MQTT-Broker...</p>
+          /> : <p>{t('app.connecting')}</p>
         )}
         {activeView === 'test' && (
-          isMqttConnected ? <TestView mqttClient={client} /> : <p>Verbinde mit MQTT-Broker...</p>
+          isMqttConnected ? <TestView mqttClient={client} /> : <p>{t('app.connecting')}</p>
         )}
         {activeView === 'cheap_energy' && (
           isMqttConnected ? <CheapEnergyView 
             energyData={cheapEnergyData}
             isLoading={isCheapEnergyLoading}
             error={cheapEnergyError}
-          /> : <p>Verbinde mit MQTT-Broker...</p>
+          /> : <p>{t('app.connecting')}</p>
         )}
         {activeView === 'video' && !videoState.isMini && videoPlayer}
       </main>

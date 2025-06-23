@@ -13,12 +13,14 @@ from collections import deque
 class StreamHandler:
     """Handles receiving video frames from a network stream by acting as a server."""
 
-    def __init__(self,
+    def __init__(
+        self,
         host: str,
         port: int,
         # forward_host: str = "192.168.1.103",
         forward_host: str = "localhost",
-        forward_port: int = 12345):
+        forward_port: int = 12345,
+    ):
         """
         Initialize the stream handler server.
 
@@ -140,30 +142,26 @@ class StreamHandler:
                         if not self._connect_to_forward_server():
                             self._next_send_allowed_time = time.time() + 1.0
                             continue
-                    frame = None
+                    frame_data = None
                     with self.frame_lock:
                         if len(self.frame_buffer) > 0:
-                            frame = self.frame_buffer.popleft()
-                    if frame is not None:
+                            frame_data = self.frame_buffer.popleft()
+                    if frame_data is not None:
                         try:
-                            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
-                            frame_base64 = base64.b64encode(buffer).decode('utf-8')
+                            frame_base64 = base64.b64encode(frame_data).decode("utf-8")
 
-                            message = {
-                                "type": "videostream",
-                                "data": [frame_base64]
-                            }
+                            message = {"type": "videostream", "data": [frame_base64]}
 
                             json_str = json.dumps(message)
-                            message_payload_bytes = json_str.encode('utf-8') + b'\n'
+                            message_payload_bytes = json_str.encode("utf-8") + b"\n"
                             if len(message_payload_bytes) > 500000:
                                 continue
                             self.forward_socket.sendall(message_payload_bytes)
                             self._next_send_allowed_time = time.time() + 0.02
                             try:
                                 self.forward_socket.settimeout(0.5)
-                                response_buffer = b''
-                                while not response_buffer.endswith(b'\n'):
+                                response_buffer = b""
+                                while not response_buffer.endswith(b"\n"):
                                     chunk = self.forward_socket.recv(1024)
                                     if not chunk:
                                         if self.forward_socket:
@@ -172,14 +170,23 @@ class StreamHandler:
                                         break
                                     response_buffer += chunk
                                 if self.forward_socket:
-                                    response_str = response_buffer.decode('utf-8').strip()
+                                    response_str = response_buffer.decode(
+                                        "utf-8"
+                                    ).strip()
                                     if response_str:
                                         try:
                                             response_data = json.loads(response_str)
-                                            if isinstance(response_data, dict) and \
-                                               response_data.get("message") == "Video stream ignored, no WebRTC clients connected" and \
-                                               response_data.get("status") == "success":
-                                                self._next_send_allowed_time = time.time() + 5.0
+                                            if (
+                                                isinstance(response_data, dict)
+                                                and response_data.get("message")
+                                                == "Video stream ignored, no WebRTC clients connected"
+                                                and response_data.get("status")
+                                                == "success"
+                                            ):
+
+                                                self._next_send_allowed_time = (
+                                                    time.time() + 1.0
+                                                )
                                         except json.JSONDecodeError:
                                             pass
                             except socket.timeout:
@@ -274,7 +281,7 @@ class StreamHandler:
                         self.current_frame = frame
                         self.frame_available = True
                         with self.frame_lock:
-                            self.frame_buffer.append(frame.copy())
+                            self.frame_buffer.append(frame_data)
                         if self.frame_height == 0 or self.frame_width == 0:
                             self.frame_height, self.frame_width = frame.shape[:2]
                 except ConnectionError:

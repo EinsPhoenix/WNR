@@ -2,20 +2,20 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
+    background-color: var(--background2-color);
 }
 
 .App {
   display: flex;
   height: 100vh;
-  background-color: #1a1a1a;
+  background: linear-gradient(135deg, var(--background2-color), var(--secondary-color));
 }
 
 .container {
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
-    background: white;
+    background: var(--pastel-white-color);
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
@@ -29,14 +29,15 @@ body {
 
 h1 {
     text-align: center;
-    color: #333;
+    color: var(--pastel-white-color);
 }
 
 .main-content h1, .main-content h2 {
-  color: #e0e0e0;
-  border-bottom: 1px solid #444;
+  color: var(--pastel-white-color);
+  border-bottom: 2px solid var(--primary-color);
   padding-bottom: 0.5rem;
   margin-bottom: 1rem;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
 }
 
 .button {

@@ -1,13 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './VideoView.css';
-import { FiMinimize2, FiMaximize2, FiXCircle, FiMaximize } from 'react-icons/fi';
+import { FiMinimize2, FiMaximize2, FiXCircle, FiMaximize, FiPlay, FiPause, FiRewind } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 
-const VideoView = ({ isMini, onToggleMini, onClose, frameData, connectionStatus }) => {
+const VideoView = ({ 
+    isMini, 
+    onToggleMini, 
+    onClose, 
+    frameData, 
+    connectionStatus, 
+    isPaused, 
+    onTogglePause, 
+    onRewind,
+    onSeek,
+    cacheInfo,
+    currentTimestamp,
+    showPlaybackControls,
+}) => {
+    const { t } = useTranslation();
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
     const [position, setPosition] = useState({ x: window.innerWidth - 340, y: window.innerHeight - 250 });
     const [isDragging, setIsDragging] = useState(false);
     const dragStartOffset = useRef({ x: 0, y: 0 });
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     useEffect(() => {
         if (frameData) {
@@ -39,6 +55,16 @@ const VideoView = ({ isMini, onToggleMini, onClose, frameData, connectionStatus 
         };
     }, [isDragging]);
 
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, []);
+
     const displayFrame = (base64Data) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -54,6 +80,7 @@ const VideoView = ({ isMini, onToggleMini, onClose, frameData, connectionStatus 
 
     const handleMouseDown = (e) => {
         if (!isMini) return;
+        if (e.target.closest('button')) return;
         setIsDragging(true);
         const containerRect = containerRef.current.getBoundingClientRect();
         dragStartOffset.current = {
@@ -84,15 +111,22 @@ const VideoView = ({ isMini, onToggleMini, onClose, frameData, connectionStatus 
     return (
         <div className={containerClass} ref={containerRef} style={miniPlayerStyle}>
             <div className="video-header" onMouseDown={handleMouseDown}>
-                
                 <div className="video-controls">
-                    <button onClick={handleFullscreen} title="Vollbild">
+                    <button onClick={onTogglePause} title={isPaused ? t('video.resume') : t('video.pause')}>
+                        {isPaused ? <FiPlay /> : <FiPause />}
+                    </button>
+                    {isPaused && (
+                        <button onClick={onRewind} title={t('video.rewind')} disabled={!currentTimestamp}>
+                            <FiRewind />
+                        </button>
+                    )}
+                    <button onClick={handleFullscreen} title={t('video.fullscreen')}>
                         <FiMaximize />
                     </button>
-                    <button onClick={onToggleMini} title={isMini ? "Maximieren" : "Mini-Player"}>
+                    <button onClick={onToggleMini} title={isMini ? t('video.maximize') : t('video.miniPlayer')}>
                         {isMini ? <FiMaximize2 /> : <FiMinimize2 />}
                     </button>
-                    <button onClick={onClose} title="Schließen">
+                    <button onClick={onClose} title={t('video.close')}>
                         <FiXCircle />
                     </button>
                 </div>
@@ -101,12 +135,26 @@ const VideoView = ({ isMini, onToggleMini, onClose, frameData, connectionStatus 
                 <canvas ref={canvasRef} className="video-canvas" />
                 {connectionStatus !== 'connected' && (
                     <div className="status-overlay">
-                        <p>Status: {connectionStatus}</p>
-                        {connectionStatus === 'error' && <p>Verbindung fehlgeschlagen.</p>}
-                        {connectionStatus === 'disconnected' && <p>Verbindung wird wiederhergestellt...</p>}
+                        <p>{t('video.status', { status: connectionStatus })}</p>
+                        {connectionStatus === 'error' && <p>{t('video.connectionFailed')}</p>}
+                        {connectionStatus === 'disconnected' && <p>{t('video.reconnecting')}</p>}
                     </div>
                 )}
             </div>
+            {showPlaybackControls && (
+                <div className="timeline-container">
+                    <input
+                        type="range"
+                        className="timeline-slider"
+                        min={cacheInfo.oldest || 0}
+                        max={cacheInfo.newest || 0}
+                        value={currentTimestamp || 0}
+                        onChange={(e) => onSeek(Number(e.target.value))}
+                        disabled={!isPaused || !cacheInfo.oldest}
+                        title={t('video.timeline')}
+                    />
+                </div>
+            )}
         </div>
     );
 };
