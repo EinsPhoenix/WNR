@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import mqtt from 'mqtt';
 import MqttClientDisplay from './components/MqttClient';
 import RustRequestSender from './components/RustRequestSender';
+import VideoStreamButton from './components/VideoStreamButton';
 import './App.css';
 
 function App() {
@@ -69,7 +70,10 @@ function App() {
       <MqttClientDisplay connectStatus={connectStatus} />
 
       {client && connectStatus === 'Connected' ? (
-        <RustRequestSender mqttClient={client} />
+        <>
+          <RustRequestSender mqttClient={client} />
+          <VideoStreamButton />
+        </>
       ) : (
         <p>Connecting to MQTT broker or MQTT client not available...</p>
       )}

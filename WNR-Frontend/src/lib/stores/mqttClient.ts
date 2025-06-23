@@ -103,7 +103,7 @@ export function initMqtt() {
     protocol: 'ws',
   };
 
-  client = window.mqtt.connect('ws://192.168.1.100:9001', options);
+  client = window.mqtt.connect('ws://localhost:9001', options);
 
   client.on('connect', () => {
     console.log('Connected to MQTT');
