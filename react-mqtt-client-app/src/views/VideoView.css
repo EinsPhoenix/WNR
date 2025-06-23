@@ -1,0 +1,118 @@
+.video-view-container {
+    background-color: #2c3e50;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+.video-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    color: #ecf0f1;
+}
+
+.video-header h4 {
+    margin: 0;
+}
+
+.video-controls button {
+    background: none;
+    border: none;
+    color: #bdc3c7;
+    cursor: pointer;
+    font-size: 1.2rem;
+    margin-left: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.video-controls button:hover {
+    color: #3498db;
+}
+
+.video-content {
+    position: relative;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.video-canvas {
+   
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+}
+
+.status-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.video-view-container.mini-player {
+    position: fixed;
+    width: 320px;
+    height: auto; 
+    z-index: 1000;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+    padding: 0.5rem;
+}
+
+.mini-player .video-header {
+    margin-bottom: 0.5rem;
+    cursor: move;
+}
+
+.mini-player .video-header h4 {
+    font-size: 0.9rem;
+}
+
+.mini-player .video-canvas {
+    width: 100%;
+    height: auto;
+}
+
+.video-view-container:fullscreen {
+    background-color: #000;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-view-container:fullscreen .video-header {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1001;
+    background-color: rgba(44, 62, 80, 0.7);
+    padding: 0.5rem;
+    border-radius: 5px;
+}
+
+.video-view-container:fullscreen .video-canvas {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    object-fit: contain;
+}
