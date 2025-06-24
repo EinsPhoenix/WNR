@@ -23,6 +23,10 @@
   let buildColor = '';
   let id = '';
 
+  let latest = [];
+  let energyCost;
+  let energyCostPercentage;
+
   const MAX_POINTS = 30;
 
   const data: ChartData<'line'> = {
@@ -88,10 +92,23 @@
 
   const options3: ChartOptions<'bar'> = { responsive: true, aspectRatio: 2.1, plugins: { legend: { display: false } } };
 
+  let oldCost: number | null = null;
+
   function updateCharts(payload: any) {
     if (!payload?.data?.length) return;
 
-    const latest = payload.data.at(-1);
+    latest = payload.data.at(-1);
+    energyCost = latest.energy_cost;
+    let newCost = energyCost;
+
+    if (oldCost !== null) {
+      energyCostPercentage = (((newCost - oldCost) / oldCost) * 100).toFixed(2);
+    }
+
+    energyCost = newCost;
+    oldCost = newCost;
+
+    console.log("latest data: ", latest);
     const timestamp = dayjs(latest.timestamp || latest.date).format('HH:mm:ss');
     buildNumber = dayjs(latest.timestamp).format('DD.MM.YYYY');
     buildColor = latest.color;
@@ -172,9 +189,9 @@
 
       <div class="energy-cost box-title2">
         Energy costs:
-        <div class="cost-number">254 €</div>
+        <div class="cost-number">{latest.energy_cost}</div>
         <div class="cost-percentage">
-          -33%
+          {energyCostPercentage} %
           <svg
             class="cost-icon"
             width="17"

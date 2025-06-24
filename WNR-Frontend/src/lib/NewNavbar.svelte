@@ -49,11 +49,11 @@
     }
 
     function goNotifications() {
-      window.location.href = '/';
+      window.location.href = '/notifications';
     }
 
     function goSettings() {
-      window.location.href = '/';
+      window.location.href = '/settings';
     }
 
     function logout() {

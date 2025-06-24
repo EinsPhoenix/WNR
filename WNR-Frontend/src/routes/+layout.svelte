@@ -20,7 +20,7 @@
     <Loader />
 {/if}
 
-{#if $page.url.pathname === '/' || $page.url.pathname === '/messages'}
+{#if $page.url.pathname === '/' || $page.url.pathname === '/messages' || $page.url.pathname === '/notifications' || $page.url.pathname === '/settings'}
   <NewNavbar />
 {/if}
 <slot />

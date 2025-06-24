@@ -1,0 +1,12 @@
+[IMPORTANT]
+- reworking active productions
+- calculating energy, speed, failure rate
+- green / red icons based on real data
+
+[NICE TO HAVE]
+- notification tab
+- message number
+- notification number
+- dark / light mode
+- login with username
+- using name from login in user sidebar

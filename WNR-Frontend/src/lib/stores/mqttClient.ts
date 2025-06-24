@@ -120,7 +120,7 @@ export function initMqtt() {
       localStorage.setItem("data", JSON.stringify(data));
       liveData.set(data); // this for the charts
       // mqttData.update((items) => [data, ...items]); // this for the navbar items
-      console.log(data);
+      // console.log(data);
 
       mqttData.update((items) =>
         [data, ...items].sort((b, a) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 50)
